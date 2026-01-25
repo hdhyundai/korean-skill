@@ -26,20 +26,17 @@
         th.sortable.active i{color:#003478;opacity:1}
         #login-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.98);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
         
-        /* 점수 버튼 기본 스타일 */
-        .score-btn{flex:1;height:44px;border-radius:8px;border:2px solid #e2e8f0;background-color:white;color:#64748b;font-size:0.75rem;font-weight:700;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+        /* 점수 버튼 스타일 */
+        .score-btn{flex:1;height:44px;border-radius:8px;border:2px solid #e2e8f0;background-color:white;color:#64748b;font-size:0.8rem;font-weight:700;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
         .score-btn:hover{background-color:#f8fafc;border-color:#cbd5e1}
         
-        /* 점수별 활성화 스타일 */
-        .score-btn.active-0{background-color:#fee2e2;border-color:#ef4444;color:#b91c1c} /* 매우 부족 (빨강) */
-        .score-btn.active-1{background-color:#ffedd5;border-color:#f97316;color:#c2410c} /* 부족 (주황) */
+        .score-btn.active-0{background-color:#fee2e2;border-color:#ef4444;color:#b91c1c}
+        .score-btn.active-1{background-color:#ffedd5;border-color:#f97316;color:#c2410c}
+        .score-btn.active-2{background-color:#e6f4ea;border-color:#008c46;color:#008c46} /* 보통: 초록색 */
+        .score-btn.active-3{background-color:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
+        .score-btn.active-4{background-color:#e0e7ff;border-color:#4f46e5;color:#3730a3}
         
-        /* [수정] 보통 (초록색으로 변경) */
-        .score-btn.active-2{background-color:#e6f4ea;border-color:#008c46;color:#008c46} 
-        
-        .score-btn.active-3{background-color:#dbeafe;border-color:#3b82f6;color:#1d4ed8} /* 우수 (파랑) */
-        .score-btn.active-4{background-color:#e0e7ff;border-color:#4f46e5;color:#3730a3} /* 매우 우수 (남색) */
-        
+        /* 하단 여백: 버튼이 작아졌으므로 적당히 조정 */
         .pb-safe{padding-bottom: 120px !important;}
     </style>
 </head>
@@ -173,21 +170,22 @@
                         <button onclick="setTab('skill')" id="tab-skill" class="flex-1 py-3 md:py-4 text-xs md:text-sm font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">🛠️ 기량 검증</button>
                     </div>
 
-                    <div class="p-2 bg-transparent flex justify-end z-20 sticky top-0">
-                        <button onclick="saveCurrentEval()" id="btn-save" class="bg-hd-blue text-white py-1.5 px-6 rounded-lg font-bold text-sm shadow-md hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2 w-full md:w-auto"><i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-text">한국어 결과 저장</span></button>
-                    </div>
-
                     <div id="view-korean" class="flex-1 overflow-y-auto p-4 md:p-6 pb-safe">
-                        <div class="flex justify-between items-end mb-4 md:mb-6 border-b border-slate-100 pb-2"><span class="text-xs md:text-sm font-bold text-slate-500">평가 항목 (6개)</span><div class="text-right"><p class="text-[10px] md:text-xs text-slate-400">총점</p><p class="text-xl md:text-2xl font-black text-hd-blue leading-none" id="korean-total-score">0 <span class="text-xs md:text-sm text-slate-400 font-normal">/ 100</span></p></div></div>
-                        <div id="korean-items" class="space-y-6 md:space-y-8"></div>
+                        <div id="korean-items" class="space-y-3 md:space-y-4"></div>
                     </div>
                     <div id="view-skill" class="hidden flex-1 overflow-y-auto p-6 md:p-8 pb-safe flex flex-col items-center bg-slate-50">
                         <div class="w-full max-w-lg space-y-4 md:space-y-6" id="skill-forms-container"></div>
                         <div class="w-full max-w-lg mt-4 md:mt-6"><textarea id="skill-memo" class="w-full h-24 md:h-32 p-3 md:p-4 border border-slate-300 rounded-xl text-xs md:text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" placeholder="종합 의견 및 특이사항 메모"></textarea></div>
                     </div>
 
-                    <div class="fixed bottom-0 right-0 w-full md:absolute md:w-full p-2 pb-8 md:pb-2 bg-transparent flex justify-end z-50 pointer-events-none">
-                        <button onclick="saveCurrentEval()" id="btn-save-mobile" class="pointer-events-auto bg-hd-blue text-white py-1.5 px-6 rounded-lg font-bold text-sm shadow-md hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> <span>저장</span></button>
+                    <div class="fixed bottom-0 right-0 w-full md:absolute md:w-full p-2 pb-8 md:pb-2 bg-transparent flex justify-between items-center z-50 pointer-events-none px-6">
+                         <div class="pointer-events-auto bg-white/90 backdrop-blur px-4 py-1.5 rounded-full shadow-sm border border-slate-200" id="korean-score-badge">
+                            <span class="text-xs font-bold text-slate-500 mr-1">총점</span>
+                            <span id="korean-total-score-fixed" class="text-lg font-black text-hd-blue">0</span>
+                            <span class="text-xs text-slate-400">/100</span>
+                        </div>
+                        
+                        <button onclick="saveCurrentEval()" id="btn-save-mobile" class="pointer-events-auto bg-hd-blue text-white py-1.5 px-6 rounded-lg font-bold text-sm shadow-md hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-text-fixed">저장</span></button>
                     </div>
                 </div>
             </div>
@@ -253,6 +251,7 @@
     </main>
 
 <script>
+// [유지] GAS URL 하드코딩
 const gasUrl = "https://script.google.com/macros/s/AKfycbynw_-SO7dLFz0pvCEmn38RYG_RlNxzn_SEXPkzBXR9_TK-fLltgukddh7RX0l-oIkM/exec";
 
 let candidates=[],currentId=null,currentTab='korean',confCountry=localStorage.getItem('confCountry')||"",confAgency=localStorage.getItem('confAgency')||"",activeQSets=[],currentQPage=0,dashboardSort={col:'id',asc:false},adminSort={col:'no',asc:true},userRole='evaluator';
@@ -275,7 +274,7 @@ function setTab(tabName){currentTab=tabName;['korean','skill'].forEach(t=>{docum
 function updateHeaderLocation(){const loc=(confCountry&&confAgency)?`${confCountry} / ${confAgency}`:'국가/업체 미설정';document.getElementById('header-location').innerText=loc}
 
 // --- 평가 화면 (한국어) ---
-function renderEvalItems(){const container=document.getElementById('korean-items');container.innerHTML='';const items=[{id:1,title:'① 이해/응답력',max:20},{id:2,title:'② 발음/억양',max:10},{id:3,title:'③ 문법/문장구성',max:20},{id:4,title:'④ 어휘 활용',max:20},{id:5,title:'⑤ 표현력/확장성',max:20},{id:6,title:'⑥ 태도/자신감',max:10}];items.forEach(item=>{let buttonsHtml='<div class="flex justify-between gap-2 mb-3">';for(let i=0;i<5;i++){const label=SCORE_LABELS[i];const score=(item.max===10)?SCORES_10[i]:SCORES_20[i];buttonsHtml+=`<button type="button" onclick="setScore(${item.id}, ${i}, ${item.max})" id="btn-${item.id}-${i}" class="score-btn"><span class="text-[10px] opacity-70">${label}</span><span class="text-lg font-black">${score}</span></button>`}buttonsHtml+='</div>';container.innerHTML+=`<div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><div class="flex justify-between mb-2"><span class="font-bold text-slate-700">${item.title} <span class="text-xs text-slate-400 font-normal">(${item.max}점)</span></span></div>${buttonsHtml}<input type="hidden" id="input-${item.id}" value="2"><p id="desc-${item.id}" class="text-sm text-slate-600 bg-white p-3 rounded-lg border border-slate-200 leading-snug">${CRITERIA[item.id][2]}</p></div>`})}
+function renderEvalItems(){const container=document.getElementById('korean-items');container.innerHTML='';const items=[{id:1,title:'① 이해/응답력',max:20},{id:2,title:'② 발음/억양',max:10},{id:3,title:'③ 문법/문장구성',max:20},{id:4,title:'④ 어휘 활용',max:20},{id:5,title:'⑤ 표현력/확장성',max:20},{id:6,title:'⑥ 태도/자신감',max:10}];items.forEach(item=>{let buttonsHtml='<div class="flex justify-between gap-2 mb-3">';for(let i=0;i<5;i++){const label=SCORE_LABELS[i];const score=(item.max===10)?SCORES_10[i]:SCORES_20[i];buttonsHtml+=`<button type="button" onclick="setScore(${item.id}, ${i}, ${item.max})" id="btn-${item.id}-${i}" class="score-btn"><span class="text-[10px] opacity-70">${label}</span><span class="text-lg font-black">${score}</span></button>`}buttonsHtml+='</div>';container.innerHTML+=`<div class="bg-slate-50 p-3 rounded-xl border border-slate-200"><div class="flex justify-between mb-2"><span class="font-bold text-lg text-slate-700">${item.title} <span class="text-xs text-slate-400 font-normal">(${item.max}점)</span></span></div>${buttonsHtml}<input type="hidden" id="input-${item.id}" value="2"><p id="desc-${item.id}" class="text-base text-slate-600 bg-white p-3 rounded-lg border border-slate-200 leading-snug">${CRITERIA[item.id][2]}</p></div>`})}
 function setScore(id,valIndex,max){document.getElementById(`input-${id}`).value=valIndex;updateEvalUI(id,valIndex)}
 function updateEvalUI(id,valIndex){
     // [수정] innerHTML 사용하여 태그 적용
@@ -283,7 +282,17 @@ function updateEvalUI(id,valIndex){
     for(let i=0;i<5;i++){const btn=document.getElementById(`btn-${id}-${i}`);if(i===valIndex){btn.classList.add(`active-${i}`)}else{btn.classList.remove('active-0','active-1','active-2','active-3','active-4')}}
     calcKoreanTotal();
 }
-function calcKoreanTotal(){let total=0;for(let i=1;i<=6;i++){const v=parseInt(document.getElementById(`input-${i}`).value);const max=(i===2||i===6)?10:20;total+=(max===10)?SCORES_10[v]:SCORES_20[v]}document.getElementById('korean-total-score').innerHTML=`${total} <span class="text-sm text-slate-400 font-normal">/ 100</span>`;return total}
+function calcKoreanTotal(){
+    let total=0;
+    for(let i=1;i<=6;i++){
+        const v=parseInt(document.getElementById(`input-${i}`).value);
+        const max=(i===2||i===6)?10:20;
+        total+=(max===10)?SCORES_10[v]:SCORES_20[v];
+    }
+    // [수정] 하단 고정바의 점수 업데이트
+    document.getElementById('korean-total-score-fixed').innerText = total;
+    return total;
+}
 
 // --- 평가 화면 (기량) ---
 function calcSkillGrade(type){let val=0;let displayId="";let g="D";if(type==='weld'){val=parseInt(document.getElementById('skill-score-weld').value)||0;displayId="skill-grade-weld";if(val>=91)g="S";else if(val>=76)g="A";else if(val>=61)g="B";else if(val>=51)g="C";else g="D"}else if(type==='fit'){val=parseInt(document.getElementById('skill-score-fit').value)||0;displayId="skill-grade-fit";if(val>=91)g="S";else if(val>=76)g="A";else if(val>=61)g="B";else if(val>=51)g="C";else g="D"}const el=document.getElementById(displayId);if(el){el.innerText=g;el.className=`text-4xl font-black ${g==='S'||g==='A'?'text-purple-600':(type==='weld'&&g==='B')||(type==='fit'&&(g==='B'||g==='C'))?'text-green-600':'text-red-500'}`}}
