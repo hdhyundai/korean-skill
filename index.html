@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HD현대삼호 외국인 평가 시스템</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f8fafc; color: #334155; overflow: hidden; touch-action: manipulation; }
+        .text-hd-blue { color: #003478; } .bg-hd-blue { background-color: #003478; }
+        .text-hd-green { color: #008c46; } .bg-hd-green { background-color: #008c46; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+        .nav-btn.active { background-color: white; color: #003478; font-weight: 800; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .nav-btn { color: rgba(255,255,255,0.9); transition: all 0.2s; white-space: nowrap; }
+        .nav-btn:hover { color: white; background-color: rgba(255,255,255,0.2); }
+        
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; }
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .hl-red { color: #dc2626; font-weight: 800; text-decoration: underline; text-decoration-color: #fca5a5; }
+        
+        th.sortable { cursor: pointer; user-select: none; transition: background 0.2s; position: relative; padding-right: 20px; text-align: center; }
+        th.sortable:hover { background-color: #e2e8f0; }
+        th.sortable i { margin-left: 4px; color: #94a3b8; font-size: 0.8em; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+        th.sortable.active i { color: #003478; opacity: 1; }
+        
+        #login-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+
+        /* New Score Button Styles */
+        .score-btn {
+            flex: 1;
+            height: 44px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            background-color: white;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .score-btn:hover { background-color: #f8fafc; border-color: #cbd5e1; }
+        .score-btn.active-0 { background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; } /* 매우부족 (Red) */
+        .score-btn.active-1 { background-color: #ffedd5; border-color: #f97316; color: #c2410c; } /* 부족 (Orange) */
+        .score-btn.active-2 { background-color: #f1f5f9; border-color: #64748b; color: #334155; } /* 보통 (Slate) */
+        .score-btn.active-3 { background-color: #dbeafe; border-color: #3b82f6; color: #1d4ed8; } /* 우수 (Blue) */
+        .score-btn.active-4 { background-color: #e0e7ff; border-color: #4f46e5; color: #3730a3; } /* 매우우수 (Indigo) */
+
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="w-16 h-16 bg-hd-blue text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg"><i class="fa-solid fa-anchor"></i></div>
+            <h2 class="text-2xl font-black text-slate-800 mb-1">HD현대삼호</h2>
+            <p class="text-sm text-slate-500 mb-6 font-medium">외국인 기량/한국어 평가 시스템</p>
+            <input type="password" id="login-pw" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-center text-lg font-bold mb-4 focus:border-hd-blue focus:outline-none transition-colors" placeholder="접속 코드 입력" onkeyup="if(event.key==='Enter') attemptLogin()">
+            <button onclick="attemptLogin()" class="w-full bg-hd-blue text-white py-3.5 rounded-xl font-bold text-lg hover:bg-blue-900 transition shadow-lg active:scale-95">접속하기</button>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="bg-hd-blue text-white h-14 md:h-16 px-4 md:px-6 shadow-lg flex justify-between items-center shrink-0 z-50">
+        <div class="flex items-center gap-2 md:gap-3 w-auto md:w-60">
+            <div class="bg-white/10 w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center backdrop-blur-sm shrink-0"><i class="fa-solid fa-ship text-sm md:text-lg"></i></div>
+            <div><h1 class="font-black text-sm md:text-lg tracking-tight leading-none whitespace-nowrap">HD현대삼호</h1><p class="text-[10px] opacity-70 font-light mt-0.5 hidden sm:block">Global Recruiting</p></div>
+        </div>
+        <nav class="flex gap-1 md:gap-2 bg-black/10 p-1 rounded-lg overflow-x-auto" id="main-nav">
+            <button onclick="navTo('dashboard')" id="nav-dashboard" class="nav-btn active px-3 md:px-6 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-bold">대시보드</button>
+            <button onclick="navTo('evaluation')" id="nav-evaluation" class="nav-btn px-3 md:px-6 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-bold">평가하기</button>
+            <button onclick="navTo('admin')" id="nav-admin" class="nav-btn px-3 md:px-6 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-bold">관리</button>
+        </nav>
+        <div class="w-auto md:w-60 flex justify-end items-center gap-3 text-xs md:text-sm">
+            <div class="text-right hidden md:block"><p class="font-bold" id="user-role-label">평가자</p><p class="text-xs opacity-70" id="header-location">국가/업체 미설정</p></div>
+            <div class="w-8 h-8 md:w-10 md:h-10 bg-white text-hd-blue rounded-full flex items-center justify-center font-bold text-sm md:text-lg shadow-sm shrink-0" id="user-icon">A</div>
+            <button onclick="logout()" class="text-white/70 hover:text-white transition-colors ml-2" title="사용자 변경 (로그아웃)"><i class="fa-solid fa-arrow-right-from-bracket text-lg"></i></button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 overflow-hidden relative bg-slate-50" id="main-container">
+        
+        <!-- ================= PAGE: DASHBOARD ================= -->
+        <div id="page-dashboard" class="h-full overflow-y-auto p-4 md:p-6 fade-in max-w-[1600px] mx-auto">
+            <!-- Filter Bar -->
+            <div class="mb-4 md:mb-6 flex flex-wrap gap-2 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-xs md:text-sm font-bold text-slate-600 px-1"><i class="fa-solid fa-filter mr-1"></i> 필터:</span>
+                <select id="dash-filter-country" class="border border-slate-300 rounded px-2 py-1 text-xs md:text-sm font-bold text-slate-600 flex-1 md:flex-none" onchange="renderDashboard()">
+                    <option value="all">전체 국가</option>
+                </select>
+                <select id="dash-filter-agency" class="border border-slate-300 rounded px-2 py-1 text-xs md:text-sm font-bold text-slate-600 flex-1 md:flex-none" onchange="renderDashboard()">
+                    <option value="all">전체 업체</option>
+                </select>
+            </div>
+
+            <!-- Top Stats -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
+                <!-- Korean Stats -->
+                <div class="card p-4 md:p-5 border-l-4 border-blue-500 relative overflow-hidden">
+                    <h3 class="text-blue-900 font-bold mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-language text-lg"></i> 한국어 평가 현황</h3>
+                    <div class="flex items-center justify-between">
+                        <div class="flex gap-4 md:gap-8 text-center md:text-left">
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">대상</p><p class="text-xl md:text-3xl font-black text-slate-800" id="dash-k-total">0</p></div>
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">완료</p><p class="text-xl md:text-3xl font-black text-blue-600" id="dash-k-comp">0</p></div>
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">합격률</p><p class="text-xl md:text-3xl font-black text-blue-400" id="dash-k-rate">0%</p></div>
+                        </div>
+                        <div class="w-16 h-16 md:w-24 md:h-24 relative"><canvas id="chartKorean"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Skill Stats -->
+                <div class="card p-4 md:p-5 border-l-4 border-orange-500 relative overflow-hidden">
+                    <h3 class="text-orange-900 font-bold mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-hammer text-lg"></i> 기량 평가 현황</h3>
+                    <div class="flex items-center justify-between">
+                        <div class="flex gap-4 md:gap-8 text-center md:text-left">
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">대상</p><p class="text-xl md:text-3xl font-black text-slate-800" id="dash-s-total">0</p></div>
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">완료</p><p class="text-xl md:text-3xl font-black text-orange-600" id="dash-s-comp">0</p></div>
+                            <div><p class="text-[10px] md:text-xs text-slate-500 mb-1">합격률</p><p class="text-xl md:text-3xl font-black text-orange-400" id="dash-s-rate">0%</p></div>
+                        </div>
+                        <div class="w-16 h-16 md:w-24 md:h-24 relative"><canvas id="chartSkill"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent List Table -->
+            <div class="card flex flex-col h-[calc(100vh-350px)] min-h-[300px]">
+                <div class="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-xl sticky top-0 z-10">
+                    <h3 class="font-bold text-slate-700 flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-clock-rotate-left text-hd-green"></i> 최근 평가 완료 내역</h3>
+                    <span class="text-[10px] md:text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-medium">실시간</span>
+                </div>
+                <div class="flex-1 overflow-auto">
+                    <table class="w-full text-xs md:text-sm text-center text-slate-600">
+                        <thead class="text-[10px] md:text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10">
+                            <tr>
+                                <th class="px-4 md:px-6 py-3 sortable whitespace-nowrap" onclick="handleSort('dash', 'no')">NO <i class="fa-solid fa-sort"></i></th>
+                                <th class="px-4 md:px-6 py-3 sortable whitespace-nowrap" onclick="handleSort('dash', 'name')">이름 <i class="fa-solid fa-sort"></i></th>
+                                <th class="px-4 md:px-6 py-3 sortable whitespace-nowrap" onclick="handleSort('dash', 'job')">직종 <i class="fa-solid fa-sort"></i></th>
+                                <th class="px-4 md:px-6 py-3 sortable whitespace-nowrap" onclick="handleSort('dash', 'age')">나이/E9 <i class="fa-solid fa-sort"></i></th>
+                                <th class="px-4 md:px-6 py-3 text-center sortable whitespace-nowrap" onclick="handleSort('dash', 'k_score')">한국어 <i class="fa-solid fa-sort"></i></th>
+                                <th class="px-4 md:px-6 py-3 text-center whitespace-nowrap">기량</th>
+                                <th class="px-4 md:px-6 py-3 text-center sortable whitespace-nowrap" onclick="handleSort('dash', 'result')">결과 <i class="fa-solid fa-sort"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="7" class="p-10 text-center text-slate-400">데이터가 없습니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE: EVALUATION ================= -->
+        <div id="page-evaluation" class="hidden h-full flex flex-col fade-in">
+            <!-- Top Bar -->
+            <div class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row gap-2 md:gap-4 items-center shadow-sm shrink-0 z-20">
+                <div class="flex gap-2 w-full md:w-auto">
+                    <select id="eval-filter-country" class="border border-slate-300 rounded-lg px-2 py-2 text-xs md:text-sm font-bold text-slate-600 flex-1" onchange="updateCandidateSelect()">
+                        <option value="all">전체 국가</option>
+                    </select>
+                    <select id="eval-filter-agency" class="border border-slate-300 rounded-lg px-2 py-2 text-xs md:text-sm font-bold text-slate-600 flex-1" onchange="updateCandidateSelect()">
+                        <option value="all">전체 업체</option>
+                    </select>
+                </div>
+                <div class="relative flex-1 w-full">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fa-solid fa-magnifying-glass text-slate-400"></i></div>
+                    <select id="candidate-select" class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-700 text-sm md:text-base focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:bg-slate-100 transition-colors"></select>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <!-- Only Visible to Admin -->
+                    <button id="btn-shuffle" class="hidden px-3 md:px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 hover:text-hd-blue transition-colors font-bold flex items-center justify-center gap-2 text-xs md:text-sm shadow-sm flex-1 md:flex-none" title="질문 새로고침">
+                        <i class="fa-solid fa-shuffle"></i> <span class="hidden sm:inline">질문 변경</span>
+                    </button>
+                    <!-- Only Visible to Interviewer -->
+                    <label id="btn-interviewer-upload" for="file-upload-int" class="hidden cursor-pointer px-3 md:px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-xs md:text-sm shadow-sm flex-1 md:flex-none">
+                        <i class="fa-solid fa-upload"></i> <span class="hidden sm:inline">명단 업로드</span>
+                    </label>
+                    <input type="file" id="file-upload-int" class="hidden" accept=".xlsx,.xls" onchange="uploadExcel(this)">
+                    
+                    <div id="interviewer-controls" class="hidden ml-auto flex gap-2">
+                        <span id="badge-job" class="px-2 md:px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-100 whitespace-nowrap flex items-center">-</span>
+                        <span id="badge-info" class="px-2 md:px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium border border-slate-200 whitespace-nowrap flex items-center">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
+                <!-- Left: Questions -->
+                <div id="eval-left-panel" class="w-full md:w-5/12 h-1/3 md:h-full bg-indigo-50/30 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col relative transition-all duration-300">
+                    <div class="p-3 md:p-4 border-b border-indigo-100 bg-indigo-50 flex justify-between items-center sticky top-0 z-10">
+                        <span class="font-bold text-indigo-900 text-xs md:text-sm flex items-center gap-2"><i class="fa-solid fa-comments"></i> 인터뷰 질문</span>
+                        <div class="flex gap-1">
+                            <span id="q-page-num" class="bg-white px-2 py-1 rounded text-[10px] md:text-xs font-bold text-indigo-600 border border-indigo-200">1 / 3</span>
+                            <button onclick="changeQPage()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] md:text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div id="question-container" class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4"></div>
+                </div>
+
+                <!-- Right: Evaluation (Hidden for Interviewer) -->
+                <div id="eval-right-panel" class="w-full md:w-7/12 h-2/3 md:h-full bg-white flex flex-col relative transition-all duration-300">
+                    <div class="flex border-b border-slate-200">
+                        <button onclick="setTab('korean')" id="tab-korean" class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-hd-blue border-b-2 border-hd-blue bg-blue-50/50 transition-all">🇰🇷 한국어 평가</button>
+                        <button onclick="setTab('skill')" id="tab-skill" class="flex-1 py-3 md:py-4 text-xs md:text-sm font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">🛠️ 기량 검증</button>
+                    </div>
+
+                    <!-- Korean Form -->
+                    <div id="view-korean" class="flex-1 overflow-y-auto p-4 md:p-6 pb-6"> <!-- FIX: Reduced padding, flexbox layout -->
+                        <div class="flex justify-between items-end mb-4 md:mb-6 border-b border-slate-100 pb-2">
+                            <span class="text-xs md:text-sm font-bold text-slate-500">평가 항목 (6개)</span>
+                            <div class="text-right"><p class="text-[10px] md:text-xs text-slate-400">총점</p><p class="text-xl md:text-2xl font-black text-hd-blue leading-none" id="korean-total-score">0 <span class="text-xs md:text-sm text-slate-400 font-normal">/ 100</span></p></div>
+                        </div>
+                        <div id="korean-items" class="space-y-6 md:space-y-8"></div>
+                    </div>
+
+                    <!-- Skill Form -->
+                    <div id="view-skill" class="hidden flex-1 overflow-y-auto p-6 md:p-8 pb-6 flex flex-col items-center bg-slate-50"> <!-- FIX: Reduced padding, flexbox layout -->
+                        <div class="w-full max-w-lg space-y-4 md:space-y-6" id="skill-forms-container"></div>
+                        <div class="w-full max-w-lg mt-4 md:mt-6">
+                            <textarea id="skill-memo" class="w-full h-24 md:h-32 p-3 md:p-4 border border-slate-300 rounded-xl text-xs md:text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" placeholder="종합 의견 및 특이사항 메모"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Fixed Footer relative to flex parent -->
+                    <div class="shrink-0 w-full p-4 bg-white border-t border-slate-200 flex justify-end z-30">
+                        <button onclick="saveCurrentEval()" id="btn-save" class="bg-hd-blue text-white py-2.5 px-6 rounded-lg font-bold text-sm shadow-md hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-text">한국어 결과 저장</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE: ADMIN ================= -->
+        <div id="page-admin" class="hidden h-full overflow-y-auto p-4 md:p-6 fade-in max-w-5xl mx-auto">
+            <div class="space-y-4 md:space-y-6">
+                
+                <!-- 1. Google Sheet (Separate) -->
+                <div class="card p-4 md:p-5 border-l-4 border-green-500 bg-white">
+                    <h3 class="font-bold text-sm md:text-base text-slate-700 mb-2 flex items-center gap-2">
+                        <i class="fa-brands fa-google text-green-600"></i> 구글 시트 연동
+                    </h3>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="text" id="gas-url" class="flex-1 border border-slate-300 rounded px-3 py-2 text-xs md:text-sm" placeholder="Apps Script 웹 앱 URL을 입력하세요">
+                        <button onclick="saveGasUrl()" class="bg-green-600 text-white px-4 py-2 rounded text-xs md:text-sm font-bold hover:bg-green-700 whitespace-nowrap">
+                            <i class="fa-solid fa-link mr-1"></i> URL 저장
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">* URL을 저장해야 평가 결과가 시트로 전송됩니다.</p>
+                </div>
+
+                <!-- 2. Upload Group (Combined & Compact) -->
+                <div class="card p-4 border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-file-arrow-up text-hd-blue"></i> 명단 등록
+                    </h3>
+                    
+                    <div class="flex flex-col md:flex-row gap-3 items-end">
+                        <!-- Settings -->
+                        <div class="flex-1 grid grid-cols-2 gap-2 w-full">
+                            <div>
+                                <label class="block text-[10px] text-slate-500 mb-1">국가</label>
+                                <input type="text" id="conf-country" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-bold" placeholder="예: 베트남">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 mb-1">업체</label>
+                                <input type="text" id="conf-agency" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-bold" placeholder="예: 삼성인력">
+                            </div>
+                        </div>
+                        
+                        <!-- Buttons -->
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <button onclick="saveUploadConfig()" class="flex-1 md:flex-none bg-slate-700 text-white px-4 py-2 rounded text-xs font-bold hover:bg-slate-800 h-[34px] flex items-center justify-center whitespace-nowrap">
+                                설정 저장
+                            </button>
+                            <label for="file-upload" class="flex-1 md:flex-none cursor-pointer bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 h-[34px] flex items-center justify-center gap-2 whitespace-nowrap">
+                                <i class="fa-solid fa-upload"></i> 엑셀 업로드
+                            </label>
+                            <input type="file" id="file-upload" class="hidden" accept=".xlsx,.xls" onchange="uploadExcel(this)">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-2">* 국가/업체 저장 후 엑셀 파일을 업로드하세요. (A~F열 데이터 읽기)</p>
+                </div>
+
+                <!-- List -->
+                <div class="card overflow-hidden">
+                    <div class="bg-slate-50 px-4 md:px-6 py-3 border-b border-slate-100 flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="font-bold text-slate-700 text-sm md:text-base">전체 등록 명단</h3>
+                        <div class="flex gap-2 items-center">
+                            <button onclick="deleteSelected()" class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200 transition border border-red-200">
+                                <i class="fa-solid fa-trash-can mr-1"></i> 선택 삭제
+                            </button>
+                            <span class="bg-white border px-3 py-1 rounded-full text-xs font-bold text-slate-500 whitespace-nowrap" id="admin-count">0명</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white border-b border-slate-100 flex gap-2 overflow-x-auto">
+                         <select id="admin-filter-country" class="border border-slate-300 rounded-lg px-2 py-1 text-sm font-bold text-slate-600" onchange="renderAdminTable()">
+                            <option value="all">전체 국가</option>
+                        </select>
+                        <select id="admin-filter-agency" class="border border-slate-300 rounded-lg px-2 py-1 text-sm font-bold text-slate-600" onchange="renderAdminTable()">
+                            <option value="all">전체 업체</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto max-h-[400px]">
+                        <table class="w-full text-xs md:text-sm text-center text-slate-600 min-w-[600px]">
+                            <thead class="text-[10px] md:text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-4 py-3 text-center w-10"><input type="checkbox" id="check-all" onchange="toggleCheckAll(this)"></th>
+                                    <th class="px-4 py-3 sortable" onclick="handleSort('admin', 'no')">NO <i class="fa-solid fa-sort"></i></th>
+                                    <th class="px-4 py-3 sortable" onclick="handleSort('admin', 'name')">이름 <i class="fa-solid fa-sort"></i></th>
+                                    <th class="px-4 py-3 sortable" onclick="handleSort('admin', 'job')">직종 <i class="fa-solid fa-sort"></i></th>
+                                    <th class="px-4 py-3 text-center sortable" onclick="handleSort('admin', 'country')">국가/업체 <i class="fa-solid fa-sort"></i></th>
+                                    <th class="px-4 py-3 text-center sortable" onclick="handleSort('admin', 'result')">결과 <i class="fa-solid fa-sort"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global
+        let candidates = [], currentId = null, currentTab = 'korean', gasUrl = localStorage.getItem('gasUrl') || "";
+        let confCountry = localStorage.getItem('confCountry') || "", confAgency = localStorage.getItem('confAgency') || "";
+        let activeQSets = [], currentQPage = 0;
+        let dashboardSort = { col: 'id', asc: false }; 
+        let adminSort = { col: 'no', asc: true };
+        let userRole = 'evaluator'; // Default
+
+        // Init
+        if(gasUrl) document.getElementById('gas-url').value = gasUrl;
+        if(confCountry) document.getElementById('conf-country').value = confCountry;
+        if(confAgency) document.getElementById('conf-agency').value = confAgency;
+
+        // Login Logic
+        function attemptLogin() {
+            const pw = document.getElementById('login-pw').value;
+            const overlay = document.getElementById('login-overlay');
+            const nav = document.getElementById('main-nav');
+            const shuffleBtn = document.getElementById('btn-shuffle');
+            const intUploadBtn = document.getElementById('btn-interviewer-upload');
+            const leftPanel = document.getElementById('eval-left-panel');
+            const rightPanel = document.getElementById('eval-right-panel');
+            const interviewerControls = document.getElementById('interviewer-controls');
+
+            if (pw === '3269') { // Admin
+                userRole = 'evaluator';
+                document.getElementById('user-role-label').innerText = "평가자";
+                document.getElementById('user-icon').innerText = "A";
+                nav.style.display = 'flex';
+                shuffleBtn.style.display = 'flex';
+                intUploadBtn.style.display = 'none';
+                leftPanel.className = "w-full md:w-5/12 h-1/3 md:h-full bg-indigo-50/30 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col relative transition-all duration-300";
+                rightPanel.className = "w-full md:w-7/12 h-2/3 md:h-full bg-white flex flex-col relative";
+                rightPanel.style.display = 'flex';
+                overlay.style.display = 'none';
+                navTo('dashboard');
+            } else if (pw === '9999') { // Interviewer
+                userRole = 'interviewer';
+                document.getElementById('user-role-label').innerText = "인터뷰어";
+                document.getElementById('user-icon').innerText = "V";
+                document.getElementById('user-icon').classList.add('bg-orange-500', 'text-white');
+                nav.style.display = 'none';
+                shuffleBtn.style.display = 'none';
+                intUploadBtn.style.display = 'flex';
+                interviewerControls.style.display = 'flex';
+                leftPanel.className = "w-full h-full bg-white flex flex-col relative transition-all duration-300";
+                rightPanel.style.display = 'none';
+                overlay.style.display = 'none';
+                navTo('evaluation');
+            } else {
+                alert("비밀번호 불일치", "error");
+            }
+        }
+        
+        function logout() {
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-pw').value = '';
+            document.getElementById('login-pw').focus();
+        }
+
+        const QUESTIONS_DB = [
+            ["이름이 뭐예요? → 그 이름은 누가 지어줬어요?", "나이가 몇 살이에요? → 지금 나이에 제일 하고 싶은 일이 뭐예요?", "가족은 몇 명이에요? → 가족 중에서 누가 본인을 제일 많이 도와줘요?", "고향은 어디예요? → 고향에서 제일 좋아했던 장소는 어디예요?", "본인 성격은 어때요? → 그 성격이 일할 때 어떤 도움이 될까요?", "용접 일은 몇 년 정도 했어요? → 일하면서 어떤 용접을 제일 많이 해봤어요?", "어떤 용접을 할 줄 알아요? → 그중에서 제일 자신 있는 건 뭐예요?", "안전장비는 잘 챙겨서 써요? → 그중에서 뭘 제일 자주 써요?", "안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 기억에 남아요?", "한국에서 일하고 싶은 마음이 커요? → 한국 오면 뭐가 제일 기대돼요?", "[신규] 매운 한국 음식도 잘 먹을 수 있어요? → 음식이 입에 안 맞으면 어떻게 할 거예요?", "[신규] 월급 받으면 제일 먼저 뭐 하고 싶어요? → 돈 모아서 고향에 보내줄 거예요?", "[신규] 고향 집에서 회사까지는 멀었어요? → 거리가 멀어도 지각 안 하고 다닐 수 있죠?"],
+            ["오늘 무슨 요일이에요? → 오늘 꼭 해야 할 일 있어요?", "지금 몇 시예요? → 보통 이 시간엔 뭐 하고 있어요?", "어제는 뭐 했어요? → 어제 했던 일 중에 뭐가 제일 기억에 남아요?", "내일은 뭐 할 거예요? → 내일 할 일을 위해 오늘 준비해 둔 거 있어요?", "좋아하는 음식은 뭐예요? → 그 음식은 누구랑 먹는 걸 좋아해요?", "싫어하는 음식도 있어요? → 그 음식은 왜 싫어하게 됐어요?", "주말엔 보통 뭐 해요? → 주말에 자주 가는 곳 있어요?", "한국 노래나 드라마 본 적 있어요? → 좋아하는 한국 노래나 배우 있어요?", "직업이 뭐예요? → 지금 그 직업을 선택한 이유가 있어요?", "지각하면 어떻게 할 거예요? → 지각 안 하려고 본인은 어떤 노력을 해요?", "[신규] 아침엔 보통 몇 시에 일어나요? → 일어나서 제일 먼저 하는 일이 뭐예요?", "[신규] 한국 겨울이 진짜 춥다는 거 알고 있어요? → 날씨가 추워도 밖에서 일할 수 있겠어요?", "[신규] 작업복 입고 일하는 거 괜찮아요? → 옷이 더러워지면 직접 빨래할 수 있어요?"],
+            ["결혼은 했어요? → 가족들이랑은 자주 연락해요?", "한국어 공부한 지는 얼마나 됐어요? → 처음에 어떻게 공부를 시작하게 됐어요?", "오늘 기분이 어때요? → 왜 그런 기분이 들어요?", "취미가 뭐예요? → 그 취미는 주로 언제 즐겨요?", "회사에서 하루에 몇 시간 일했어요? → 남는 시간엔 보통 뭐 했어요?", "일하면서 뭐가 제일 힘들었어요? → 그 힘든 걸 해결하려고 어떻게 노력했어요?", "지금까지 어떤 회사들에서 일해봤어요? → 거기서 배운 기술 중에 기억에 남는 거 있어요?", "일했던 회사는 어느 나라 회사였어요? → 그 회사 일하는 방식 중에 좋았던 점 있어요?", "높은 곳(고소)에서 작업할 수 있어요? → 높은 데서 일할 때 뭘 제일 조심해야 할까요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 그게 왜 중요할까요?", "[신규] 작업 도면(설계도) 볼 줄 알아요? → 도면이랑 실제 작업이 다르면 어떻게 해요?", "[신규] 용접기 전류랑 전압, 직접 맞출 줄 알아요? → 철판 두께에 따라서 전류를 어떻게 조절해요?", "[신규] 용접하고 나서 불량 생기면 어떻게 해요? → 다시 작업하는 거 힘들지 않아요?"],
+            ["일하다가 동료가 다치면 어떻게 할 거예요? → 그 상황에서 제일 먼저 해야 할 행동이 뭘까요?", "동료들이랑 일할 때 소통은 어떻게 해요? → 말이 잘 안 통하면 어떻게 할 거예요?", "한국 가면 어떤 일 하고 싶어요? → 그 일 하려고 준비한 거 있어요?", "왜 한국에 가고 싶은 거예요? → 한국 가서 기대하는 점이 뭐예요?", "한국 회사에서 필요한 태도가 뭐라고 생각해요? → 본인은 그런 태도로 일해본 적 있어요?", "반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 실제로 그런 경험 있으면 말해줄래요?", "동료가 도와달라고 하면 어떻게 해요? → 도와주고 나서는 어떻게 같이 일해요?", "기숙사 생활 해본 적 있어요? → 기숙사 살 때 제일 중요한 규칙이 뭘까요?", "안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 도움 됐어요?", "작업 규칙 안 지키면 무슨 문제 생길까요? → 실제로 사고 나는 거 본 적 있어요?", "[신규] 작업장에 불 나면 소화기 쓸 줄 알아요? → 소화기가 어디 있는지 항상 확인해요?", "[신규] 안전모 턱끈은 왜 꼭 매야 할까요? → 좀 답답해도 안전을 위해서 참을 수 있죠?", "[신규] 크레인이 물건 옮길 때 그 밑으로 지나가면 돼요? → 거기가 왜 위험하다고 생각해요?"],
+            ["이름이 뭐예요? → 이름을 한글로 쓸 수 있어요?", "나이가 몇 살이에요? → 한국 나이 계산법 들어본 적 있어요?", "본인 성격은 어때요? 좀 소개해 줄래요? → 성격이 급한 편이에요, 꼼꼼한 편이에요?", "고향은 어디예요? → 고향 날씨는 지금 어때요?", "한국 음식 먹어본 적 있어요? → 김치 먹어봤어요? 맛이 어땠어요?", "용접 일은 몇 년 정도 했어요? → 처음 시작했을 때보다 지금 실력이 얼마나 늘었어요?", "어떤 용접을 할 줄 알아요? → 수평 용접이랑 수직 용접 중에 뭐가 더 쉬워요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → '품질'이 왜 중요할까요?", "안전장비는 잘 챙겨서 써요? → 안전화가 발에 안 맞으면 어떻게 해요?", "마지막으로 하고 싶은 말 있어요? → 면접관한테 꼭 하고 싶은 말 해보세요.", "[신규] 무거운 물건 잘 들 수 있어요? → 허리 안 다치게 조심하는 법 알아요?", "[신규] 한국에서 돈 벌어서 고향 가면 뭐 하고 싶어요? → 집을 짓거나 가게 차릴 계획 있어요?", "[신규] 본인 장점이 뭐예요? → 동료들이 본인을 좋아하는 이유가 뭘까요?"],
+            ["가족은 몇 명이에요? → 부모님은 지금 무슨 일 하세요?", "오늘 무슨 요일이에요? → 주말에는 보통 뭐 하면서 쉬어요?", "취미가 뭐예요? → 한국 와서도 그 취미 계속할 수 있어요?", "일하면서 뭐가 제일 힘들었어요? → 힘들 때 스트레스는 어떻게 풀어요?", "지금까지 어떤 회사들에서 일해봤어요? → 조선소에서 일해본 적은 있어요?", "높은 곳(고소)에서 작업할 수 있어요? → 무서워도 참고 올라갈 수 있어요?", "안전장비는 잘 챙겨서 써요? → 보안경 안 쓰면 눈이 어떻게 될까요?", "지각하면 어떻게 할 거예요? → 늦을 것 같으면 누구한테 전화해야 해요?", "반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 일단 시키는 대로 해보는 편이에요?", "왜 한국에 가고 싶은 거예요? → 돈 버는 거 말고 다른 이유도 있어요?", "[신규] 그라인더 작업 해본 적 있어요? → 그라인더 날 갈아 끼울 때 전원 끄는 거 알죠?", "[신규] 일하다가 어지럽거나 몸이 아프면 어떻게 해요? → 쓰러질 것 같으면 동료한테 바로 말해야 해요.", "[신규] 동료가 무거운 거 들고 있으면 도와줄 거예요? → '도와주세요'라는 한국말 알아요?"],
+            ["나이가 몇 살이에요? → 본인보다 어린 반장님이 시켜도 잘 따를 수 있어요?", "결혼은 했어요? → 한국 있는 동안 아이가 보고 싶으면 어떻게 해요?", "어제는 뭐 했어요? → 한국어 면접 준비했어요?", "좋아하는 음식은 뭐예요? → 직접 요리도 할 수 있어요?", "회사에서 하루에 몇 시간 일했어요? → 일이 바쁘면 휴일에도 일할 수 있어요?", "일했던 회사는 어느 나라 회사였어요? → 외국인 동료들이랑 일해본 적 있어요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 용접할 때 깨끗하게 닦고 해야 하죠?", "일하다가 동료가 다치면 어떻게 할 거예요? → 119 부를 줄 알아요?", "동료들이랑 일할 때 소통은 어떻게 해요? → 손짓 발짓(바디랭귀지)으로도 대화할 수 있어요?", "기숙사 생활 해본 적 있어요? → 룸메이트가 시끄럽게 하면 어떻게 해요?", "[신규] 수직(Vertical) 용접 해봤어요? → 쇳물 안 흐르게 하는 방법 있어요?", "[신규] 작업 끝나면 청소랑 정리는 직접 해요? → 공구 제자리에 안 두면 무슨 문제 생길까요?", "[신규] 상사가 화내면 어떻게 반응할 거예요? → 같이 화내지 말고 '죄송합니다' 할 수 있어요?"],
+            ["이름이 뭐예요? → 한국 사람들이 부르기 쉬운 별명 있어요?", "고향은 어디예요? → 고향 친구 중에 한국 간 사람 있어요?", "지금 몇 시예요? → 한국이랑 고향이랑 시간 차이가 얼마나 나요?", "내일은 뭐 할 거예요? → 결과 기다리면서 뭐 할 거예요?", "싫어하는 음식도 있어요? → 편식하면 건강에 안 좋은 거 알죠?", "용접 일은 몇 년 정도 했어요? → 경력 증명서에 적힌 거 다 사실이에요?", "어떤 용접을 할 줄 알아요? → CO2(이산화탄소) 용접을 주로 했어요?", "안전 교육 받아본 적 있어요? → 심폐소생술(CPR) 해본 적 있어요?", "작업 규칙 안 지키면 무슨 문제 생길까요? → '나 하나쯤은 괜찮겠지' 생각하면 안 되죠?", "한국 회사에서 필요한 태도가 뭐라고 생각해요? → 시간 약속 지키는 게 기본이죠?", "[신규] 용접봉(와이어)은 아껴서 쓰는 편이에요? → 재료 낭비하면 회사가 손해 보는 거 알죠?", "[신규] 한국의 '빨리빨리' 문화 알아요? → 급해도 안전은 지켜야 한다는 거 알죠?", "[신규] 모르는 사람이랑 방 같이 써도 괜찮아요? → 방 청소 당번 정해서 할 수 있어요?"],
+            ["본인 성격은 어때요? 좀 소개해 줄래요? → 새로운 환경에 잘 적응하는 편이에요?", "한국어 공부한 지는 얼마나 됐어요? → 한국어 공부하는 거 재밌었어요?", "주말엔 보통 뭐 해요? → 빨래나 청소는 언제 해요?", "한국 노래나 드라마 본 적 있어요? → 기억나는 한국어 대사 있어요?", "직업이 뭐예요? → 용접공이라는 직업에 만족해요?", "일하면서 뭐가 제일 힘들었어요? → 날씨 더운 날 용접복 입는 거 힘들지 않아요?", "지금까지 어떤 회사들에서 일해봤어요? → 제일 오래 일한 회사는 어디예요?", "높은 곳(고소)에서 작업할 수 있어요? → 안전벨트(생명줄) 맬 줄 알아요?", "동료가 도와달라고 하면 어떻게 해요? → 내 일이 바빠도 도와줄 수 있어요?", "한국 가면 어떤 일 하고 싶어요? → 시키는 일은 뭐든 할 각오 돼 있어요?", "[신규] 가스 절단기 써본 적 있어요? → 가스 밸브 잠그는 거 까먹으면 위험하겠죠?", "[신규] 여권(Passport)은 항상 잘 챙기고 다녀요? → 여권 잃어버리면 어떻게 해야 하는지 알아요?", "[신규] 한국말 잘 못 알아들으면 어떻게 물어볼 거예요? → '다시 한번 말씀해 주세요'라고 말할 수 있어요?"],
+            ["가족은 몇 명이에요? → 가족들은 본인이 한국 가는 거 찬성해요?", "오늘 기분이 어때요? → 면접이라서 긴장돼요?", "취미가 뭐예요? → 운동하는 거 좋아해요?", "회사에서 하루에 몇 시간 일했어요? → 야근 수당에 대해서 들어본 적 있어요?", "일했던 회사는 어느 나라 회사였어요? → 한국 회사에 대해서 들어본 이야기 있어요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 전류랑 전압 잘 맞추는 게 중요하죠?", "안전장비는 잘 챙겨서 써요? → 마스크 필터는 자주 갈아끼워요?", "일하다가 동료가 다치면 어떻게 할 거예요? → 피 보고 놀라서 도망가면 안 되겠죠?", "한국 회사에서 필요한 태도가 뭐라고 생각해요? → 거짓말 안 하는 게 중요하죠?", "마지막으로 하고 싶은 말 있어요? → 한국에 꼭 가고 싶은 마음 한번 말해볼래요?", "[신규] 제일 존경하는 사람이 누구예요? → 그 사람의 어떤 점을 닮고 싶어요?", "[신규] 용접 연기(흄) 안 마시려면 어떻게 해야 해요? → 답답해도 마스크 벗으면 안 되겠죠?", "[신규] 오늘 면접 끝나면 뭐 할 거예요? → 집에 가서 푹 쉴 거예요?"],
+            ["이름이 뭐예요? → 영어 철자로 이름 말해줄 수 있어요?", "나이가 몇 살이에요? → 생년월일이 언제예요?", "고향은 어디예요? → 고향에는 공장이 많아요?", "한국어 공부한 지는 얼마나 됐어요? → 한국어 선생님은 한국 사람이었어요?", "좋아하는 음식은 뭐예요? → 돼지고기 먹을 수 있어요? (종교 때문에 못 먹나요?)", "용접 일은 몇 년 정도 했어요? → 자격증 있어요?", "어떤 용접을 할 줄 알아요? → 티그(TIG) 용접도 해본 적 있어요?", "안전장비는 잘 챙겨서 써요? → 귀마개 하면 소리 잘 안 들리는데 괜찮아요?", "지각하면 어떻게 할 거예요? → 늦잠 잔 적 있어요?", "한국에서 일하고 싶은 마음이 커요? → 한국 돈 많이 벌고 싶어요?", "[신규] 형제나 자매 있어요? → 형제들이랑 안 싸우고 잘 지내는 편이에요?", "[신규] 한국어로 숫자 100(백) 말할 수 있어요? → 물건 개수 셀 때 숫자 틀리면 안 되겠죠?", "[신규] 일하다가 딴생각 하면 돼요? → 집중 안 하면 다칠 수 있다는 거 알죠?"],
+            ["결혼은 했어요? → 아내(혹은 남편)는 무슨 일 해요?", "오늘 무슨 요일이에요? → 일요일에는 교회나 사원에 가요?", "지금 몇 시예요? → 점심은 먹었어요?", "어제는 뭐 했어요? → 술 마셨어요?", "직업이 뭐예요? → 이 일 평생 할 생각이에요?", "일하면서 뭐가 제일 힘들었어요? → 무거운 거 들 때 허리 안 아파요?", "지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 직원이 몇 명이었어요?", "높은 곳(고소)에서 작업할 수 있어요? → 다리 떨려서 일 못하면 어떡해요?", "안전 교육 받아본 적 있어요? → 소화기 쓰는 법 배웠어요?", "반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 말대꾸 하는 편이에요?", "[신규] 키랑 몸무게는 어떻게 돼요? → 좁은 곳에 들어가서 일할 수 있어요?", "[신규] 밤에 일찍 자고 아침에 일찍 일어나요? → 늦게 자면 다음 날 일할 때 피곤하지 않아요?", "[신규] 손가락 다친 적 없어요? → 손 한번 쥐었다 폈다 해볼래요?"],
+            ["본인 성격은 어때요? 좀 소개해 줄래요? → 친구들은 본인을 어떤 사람이라고 해요?", "내일은 뭐 할 거예요? → 한국어 공부 계속 할 생각이에요?", "싫어하는 음식도 있어요? → 한국 반찬에서 마늘 냄새 나도 먹을 수 있어요?", "주말엔 보통 뭐 해요? → 친구들이랑 축구 해요?", "회사에서 하루에 몇 시간 일했어요? → 쉬는 시간은 몇 분이었어요?", "일했던 회사는 어느 나라 회사였어요? → 월급은 밀리지 않고 잘 받았어요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 불똥(스패터) 잘 털어내는 게 중요해요?", "동료들이랑 일할 때 소통은 어떻게 해요? → 동료가 화내면 같이 화내요?", "기숙사 생활 해본 적 있어요? → 남의 물건 허락 없이 쓰면 돼요?", "왜 한국에 가고 싶은 거예요? → 한국 기술 배워서 고향 돌아가고 싶어요?", "[신규] 담배는 피워요? → 정해진 곳에서만 담배 피워야 하는 거 알죠?", "[신규] 종교 때문에 기도해야 해요? → 기도 시간 때문에 일 멈추면 안 되는 거 알죠?", "[신규] 회사 규칙 어기면 벌금 낼 수도 있는데, 괜찮아요? → 규칙 잘 지키겠다고 약속해요?"],
+            ["가족은 몇 명이에요? → 형제 중에 한국 있는 사람 있어요?", "한국 노래나 드라마 본 적 있어요? → 한국 사람들 친절해 보였어요?", "취미가 뭐예요? → 낚시 좋아해요?", "용접 일은 몇 년 정도 했어요? → 배 만드는 일 해본 적 있어요?", "어떤 용접을 할 줄 알아요? → 알곤(TIG) 용접도 할 줄 알아요?", "안전장비는 잘 챙겨서 써요? → 안전장갑 찢어지면 새걸로 바꿔요?", "일하다가 동료가 다치면 어떻게 할 거예요? → 큰 소리로 '도와주세요'라고 외칠 수 있어요?", "작업 규칙 안 지키면 무슨 문제 생길까요? → 회사가 피해 입으면 본인 책임도 있죠?", "한국 회사에서 필요한 태도가 뭐라고 생각해요? → '인사' 잘하는 게 중요하죠?", "동료가 도와달라고 하면 어떻게 해요? → 웃으면서 도와줄 수 있어요?", "[신규] 평소에 운동 좀 해요? → 체력이 좋아서 힘든 일도 잘할 수 있죠?", "[신규] 눈(Snow) 본 적 있어요? → 눈 오면 바닥 미끄러우니까 조심해야겠죠?", "[신규] 비 와도 출근할 수 있어요? → 날씨 핑계 대고 결근하면 안 되는 거 알죠?"],
+            ["이름이 뭐예요? → 이름에 무슨 뜻이 있어요?", "오늘 기분이 어때요? → 자신감 있어요?", "고향은 어디예요? → 고향 집은 본인 집이에요?", "한국어 공부한 지는 얼마나 됐어요? → 한국어 발음 어렵지 않아요?", "직업이 뭐예요? → 예전에 다른 일(농사 같은 거) 해본 적 있어요?", "일하면서 뭐가 제일 힘들었어요? → 일이 힘들어서 도망가고 싶었던 적 없어요?", "지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 왜 그만뒀어요?", "높은 곳(고소)에서 작업할 수 있어요? → 사다리 타고 올라갈 수 있어요?", "안전 교육 받아본 적 있어요? → 작업 시작하기 전에 체조(스트레칭) 해요?", "한국에서 일하고 싶은 마음이 커요? → 한국 음식 잘 먹을 수 있겠어요?", "[신규] 스마트폰은 자주 봐요? → 일할 때는 폰을 사물함에 넣어둘 수 있어요?", "[신규] 고향 여름은 몇 도까지 올라가요? → 한국 여름도 엄청 덥고 습한데 견딜 수 있어요?", "[신규] 저축 목표 금액이 있어요? → 그 돈 모으려면 몇 년 걸릴 것 같아요?"],
+            ["나이가 몇 살이에요? → 한국에서는 나이 많은 사람한테 존댓말 써야 하죠?", "결혼은 했어요? → (미혼이면) 언제 결혼할 생각이에요?", "오늘 무슨 요일이에요? → 월요일부터 토요일까지 일할 수 있어요?", "좋아하는 음식은 뭐예요? → 닭고기 좋아해요?", "회사에서 하루에 몇 시간 일했어요? → 점심 시간은 1시간이었어요?", "일했던 회사는 어느 나라 회사였어요? → 사장님은 좋은 분이었어요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 용접 모양(비드)이 예쁘게 나와야 해요?", "동료들이랑 일할 때 소통은 어떻게 해요? → 동료 이름 외우려고 노력해요?", "반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 고집 피우지 않을 거죠?", "지각하면 어떻게 할 거예요? → 5분 전에 도착해서 준비할 수 있어요?", "[신규] 한국 친구 사귀고 싶어요? → 한국 사람이랑 친해지려면 인사 잘해야겠죠?", "[신규] 작업복 찢어지면 꿰매서 입을 수 있어요? → 옷차림이 단정해야 안전하다는 거 알죠?", "[신규] 에어 호스(공기 줄)로 장난치면 돼요? → 사람한테 에어 쏘면 눈 다칠 수 있는 거 알죠?"],
+            ["본인 성격은 어때요? 좀 소개해 줄래요? → 화를 잘 참는 성격이에요?", "지금 몇 시예요? → 한국은 지금 몇 시인지 알아요?", "어제는 뭐 했어요? → 어제 잠은 푹 잤어요?", "한국 노래나 드라마 본 적 있어요? → '안녕하세요' 말고 아는 한국말 있어요?", "용접 일은 몇 년 정도 했어요? → 용접 기능사 자격증 있어요?", "어떤 용접을 할 줄 알아요? → 필렛(Fillet) 용접 많이 해봤어요?", "안전장비는 잘 챙겨서 써요? → 방진 마스크(먼지 마스크) 써봤어요?", "일하다가 동료가 다치면 어떻게 할 거예요? → 반장님한테 바로 보고해야 해요.", "작업 규칙 안 지키면 무슨 문제 생길까요? → 월급 깎여도 할 말 없죠?", "기숙사 생활 해본 적 있어요? → 밤에는 조용히 해야 한다는 거 알죠?", "[신규] 눈(시력)은 좋아요? → 안경 안 쓰고도 용접 부위 잘 보여요?", "[신규] 지게차가 지나가면 어떻게 해야 해요? → 지게차 운전자가 나를 못 볼 수도 있으니까 비켜야겠죠?", "[신규] 다른 사람 공구 빌려 쓸 때 어떻게 해요? → 다 쓰고 나면 '고맙습니다' 하고 돌려줘요?"],
+            ["가족은 몇 명이에요? → 한국 가면 가족들이 걱정하지 않겠어요?", "내일은 뭐 할 거예요? → 친구 만날 계획이에요?", "싫어하는 음식도 있어요? → 생선 요리 먹을 수 있어요?", "취미가 뭐예요? → 휴일에는 주로 잠만 자요?", "직업이 뭐예요? → 이 일이 본인 적성에 맞아요?", "일하면서 뭐가 제일 힘들었어요? → 한국 여름은 엄청 더운데 일할 수 있어요?", "지금까지 어떤 회사들에서 일해봤어요? → 제일 기억에 남는 동료 있어요?", "높은 곳(고소)에서 작업할 수 있어요? → 발판이 흔들려도 침착할 수 있어요?", "안전 교육 받아본 적 있어요? → 교육 받을 때 안 졸고 잘 들었어요?", "한국 회사에서 필요한 태도가 뭐라고 생각해요? → '협동(같이 일하는 것)'이 중요하죠?", "[신규] 악력(손 쥐는 힘)이 세요? → 무거운 공구 하루 종일 들고 있을 수 있어요?", "[신규] 한국의 유명한 회사 이름(삼성, 현대) 알아요? → 한국 배가 세계에서 유명하다는 거 알아요?", "[신규] 아침밥은 꼭 챙겨 먹어요? → 밥 안 먹으면 힘 없어서 일 못하지 않겠어요?"],
+            ["이름이 뭐예요? → 여권 이름이랑 똑같아요?", "한국어 공부한 지는 얼마나 됐어요? → 한국어 숫자 쓸 줄 알아요?", "주말엔 보통 뭐 해요? → 고향 친구들이랑 술 마셔요?", "좋아하는 음식은 뭐예요? → 국수 요리 좋아해요?", "회사에서 하루에 몇 시간 일했어요? → 아침 8시부터 일 시작했어요?", "일했던 회사는 어느 나라 회사였어요? → 그 나라 말 조금 할 줄 알아요?", "용접할 때 뭐가 제일 중요하다고 생각해요? → 구멍 안 나게 때우는 게 중요하죠?", "동료가 도와달라고 하면 어떻게 해요? → 귀찮아하지 않고 도와줄 수 있어요?", "반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 한국에서는 상사 말 잘 들어야 하죠?", "왜 한국에 가고 싶은 거예요? → 한국 문화 체험해 보고 싶어요?", "[신규] 본인 혈액형이 뭔지 알아요? → 건강검진 했을 때 아픈 곳은 없었어요?", "[신규] 작업 중에 전기가 찌릿하면(감전) 어떻게 해요? → 젖은 손으로 전기 코드 만지면 안 돼요.", "[신규] 아침에 반장님 만나면 어떻게 인사해요? → '안녕하십니까' 하고 큰 소리로 인사해요?"],
+            ["나이가 몇 살이에요? → 한국 가면 막내일 텐데 심부름 잘 하겠어요?", "결혼은 했어요? → 한국에서 돈 벌어서 결혼 자금 모을 거예요?", "오늘 기분이 어때요? → 면접관 인상은 어때요?", "고향은 어디예요? → 고향 자랑 하나만 해볼래요?", "한국 노래나 드라마 본 적 있어요? → 한국 노래 한 소절 부를 수 있어요?", "용접 일은 몇 년 정도 했어요? → 용접 누구한테 배웠어요?", "어떤 용접을 할 줄 알아요? → 가우징(Gouging) 작업도 해봤어요?", "안전장비는 잘 챙겨서 써요? → 안전장비 안 쓰면 작업장에 못 들어가죠?", "일하다가 동료가 다치면 어떻게 할 거예요? → 비상벨 누를 줄 알아요?", "마지막으로 하고 싶은 말 있어요? → 한국 보내주시면 열심히 일하겠어요?", "[신규] 여권에 적힌 이름 철자 외우고 있어요? → 비자 서류에 이름 직접 썼어요?", "[신규] 고향 친구들은 본인을 어떤 사람이라고 해요? → 성실하다는 말 자주 들어요?", "[신규] 합격하면 언제 한국으로 떠날 수 있어요? → 짐 미리 싸놓고 기다릴 수 있어요?"]
+        ];
+
+        const CRITERIA = {
+            1: [ // 이해/응답력 (20점)
+                "<span class='hl-red'>질문 의도 파악이 전혀 안 됨</span>. 엉뚱한 대답이나 침묵.",
+                "<span class='hl-red'>질문을 여러 번 바꾸어 말해야</span> 겨우 이해함. 단답형 위주.",
+                "간단한 질문은 즉시 이해하나, 복합 질문은 <span class='hl-red'>다시 묻거나 생각 시간 필요</span>.",
+                "<span class='hl-red'>대부분의 질문을 한 번에 이해하고</span> 즉시 답변함. 대화 흐름이 자연스러움.",
+                "질문의 <span class='hl-red'>숨은 의도까지 파악</span>하여 답변. 한국인과 대화하듯 자연스러운 소통."
+            ],
+            2: [ // 발음/억양 (10점)
+                "발음을 <span class='hl-red'>전혀 알아들을 수 없음</span>. 모국어 억양이 너무 강함.",
+                "억양이 강해 집중해야 겨우 이해 가능. <span class='hl-red'>특정 발음 오류</span>가 심함.",
+                "외국인 특유의 억양이 있으나 <span class='hl-red'>의사소통에 큰 지장 없음</span>.",
+                "발음이 비교적 정확하고 억양이 자연스러움. <span class='hl-red'>명확하게 전달됨</span>.",
+                "<span class='hl-red'>한국인과 유사한 억양</span>과 명확한 발음 구사. 듣기에 편안함."
+            ],
+            3: [ // 문법/문장구성 (20점)
+                "문장 구성 불가, <span class='hl-red'>단어만 나열함</span>. 조사를 전혀 사용 못함.",
+                "<span class='hl-red'>조사를 자주 생략</span>하거나 틀리게 사용. 주어+서술어 단순 구조.",
+                "기본적인 문장 구조를 갖춤. <span class='hl-red'>시제 오류가 가끔</span> 있음.",
+                "<span class='hl-red'>연결 어미(-고, -지만)</span>를 사용하여 문장을 이어 말함. 시제 정확함.",
+                "<span class='hl-red'>복잡한 문장(복문)</span>을 자연스럽게 구사. 높임말/반말 정확히 구분."
+            ],
+            4: [ // 어휘 활용 (20점)
+                "기본 어휘(숫자, 날짜 등)조차 혼동함. <span class='hl-red'>직무 용어 전무함</span>.",
+                "기초적인 일상 어휘만 제한적으로 사용. <span class='hl-red'>직무/현장 용어를 거의 모름</span>.",
+                "일상 대화 어휘 충분. <span class='hl-red'>직무 관련 기초 용어</span>(용접, 안전모 등)를 알고 있음.",
+                "상황에 맞는 적절한 어휘 선택. <span class='hl-red'>직무 용어를 섞어서</span> 구체적으로 설명 가능.",
+                "어휘력이 풍부하여 <span class='hl-red'>유의어를 활용</span>해 표현. 모르는 단어는 풀어서 설명 가능."
+            ],
+            5: [ // 표현력/확장성 (20점)
+                "'네/아니요' 단답형 위주. <span class='hl-red'>매우 수동적인 태도</span>.",
+                "단답 후 <span class='hl-red'>추가 질문을 해야</span> 겨우 짧게 덧붙임.",
+                "본인의 의사를 한두 문장으로 표현함. <span class='hl-red'>간단한 이유나 근거</span>를 댈 수 있음.",
+                "구체적인 사례나 경험을 들어 설명함. <span class='hl-red'>논리적으로 말하려 노력함</span>.",
+                "<span class='hl-red'>기승전결이 있는</span> 이야기 구성 가능. 주도적으로 대화를 확장함."
+            ],
+            6: [ // 태도/자신감 (10점)
+                "<span class='hl-red'>눈을 전혀 맞추지 못하고</span> 고개를 숙임. 목소리가 매우 작음.",
+                "눈 맞춤이 불안정하고 자세가 구부정함. <span class='hl-red'>자신감이 없어 보임</span>.",
+                "면접관과 적절히 눈을 맞추며 <span class='hl-red'>평범하게 인사함</span>. 기본 예의를 갖춤.",
+                "바른 자세로 <span class='hl-red'>자신감 있게</span> 응답함. 눈 맞춤이 자연스럽고 목소리에 힘이 있음.",
+                "매우 적극적이고 밝은 태도. <span class='hl-red'>아이컨택이 훌륭</span>하며 한국 문화에 맞는 제스처 사용."
+            ]
+        };
+
+        const SCORES_10 = [2, 4, 6, 8, 10];
+        const SCORES_20 = [4, 8, 12, 16, 20];
+        const SCORE_LABELS = ["매우 부족", "부족", "보통", "우수", "매우 우수"];
+
+        window.onload = function() {
+            renderEvalItems();
+            renderDashboard();
+            updateCandidateSelect();
+        };
+
+        // --- UTILS ---
+        function navTo(pageId) {
+            ['dashboard', 'evaluation', 'admin'].forEach(id => {
+                document.getElementById('page-' + id).classList.add('hidden');
+                document.getElementById('nav-' + id).classList.remove('active');
+            });
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+            document.getElementById('nav-' + pageId).classList.add('active');
+            
+            if(pageId === 'dashboard') renderDashboard();
+            if(pageId === 'admin') renderAdminTable();
+        }
+
+        function setTab(tabName) {
+            currentTab = tabName;
+            ['korean', 'skill'].forEach(t => {
+                document.getElementById('view-' + t).classList.add('hidden');
+                const btn = document.getElementById('tab-' + t);
+                btn.classList.remove('text-hd-blue', 'border-hd-blue', 'bg-blue-50/50', 'font-bold');
+                btn.classList.add('text-slate-400', 'font-medium');
+            });
+            document.getElementById('view-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabName);
+            activeBtn.classList.add('text-hd-blue', 'border-hd-blue', 'bg-blue-50/50', 'font-bold');
+            activeBtn.classList.remove('text-slate-400', 'font-medium');
+            
+            document.getElementById('btn-save-text').innerText = tabName === 'korean' ? '한국어 결과 저장' : '기량 결과 저장';
+            document.getElementById('btn-save').className = `bg-hd-blue text-white py-2.5 px-6 rounded-lg font-bold text-sm shadow-md hover:bg-blue-900 transition-transform active:scale-95 flex items-center justify-center gap-2`;
+        }
+
+        function updateHeaderLocation() {
+            const loc = (confCountry && confAgency) ? `${confCountry} / ${confAgency}` : '국가/업체 미설정';
+            document.getElementById('header-location').innerText = loc;
+        }
+
+        // --- KOREAN EVALUATION (BUTTONS) ---
+        function renderEvalItems() {
+            const container = document.getElementById('korean-items');
+            container.innerHTML = '';
+            
+            // Correct Order
+            const items = [
+                { id: 1, title: '① 이해/응답력', max: 20 },
+                { id: 2, title: '② 발음/억양', max: 10 },
+                { id: 3, title: '③ 문법/문장구성', max: 20 },
+                { id: 4, title: '④ 어휘 활용', max: 20 },
+                { id: 5, title: '⑤ 표현력/확장성', max: 20 },
+                { id: 6, title: '⑥ 태도/자신감', max: 10 }
+            ];
+
+            items.forEach(item => {
+                // Generate 5 buttons
+                let buttonsHtml = '<div class="flex justify-between gap-2 mb-3">';
+                for(let i=0; i<5; i++) {
+                    const label = SCORE_LABELS[i];
+                    // Score depends on Max (10 or 20)
+                    const score = (item.max === 10) ? SCORES_10[i] : SCORES_20[i];
+                    
+                    buttonsHtml += `
+                        <button type="button" 
+                                onclick="setScore(${item.id}, ${i}, ${item.max})" 
+                                id="btn-${item.id}-${i}"
+                                class="score-btn">
+                            <span class="text-[10px] opacity-70">${label}</span>
+                            <span class="text-lg font-black">${score}</span>
+                        </button>
+                    `;
+                }
+                buttonsHtml += '</div>';
+
+                container.innerHTML += `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-bold text-slate-700">${item.title} <span class="text-xs text-slate-400 font-normal">(${item.max}점)</span></span>
+                        </div>
+                        
+                        ${buttonsHtml}
+                        <input type="hidden" id="input-${item.id}" value="2">
+                        
+                        <p id="desc-${item.id}" class="text-sm text-slate-600 bg-white p-3 rounded-lg border border-slate-200 leading-snug">${CRITERIA[item.id][2]}</p>
+                    </div>
+                `;
+            });
+        }
+
+        // New function to handle button click
+        function setScore(id, valIndex, max) {
+            document.getElementById(`input-${id}`).value = valIndex;
+            updateEvalUI(id, valIndex);
+        }
+
+        function updateEvalUI(id, valIndex) {
+            // Update Description
+            document.getElementById(`desc-${id}`).innerHTML = CRITERIA[id][valIndex];
+            
+            // Update Visuals (Buttons)
+            for(let i=0; i<5; i++) {
+                const btn = document.getElementById(`btn-${id}-${i}`);
+                if(i === valIndex) {
+                    btn.classList.add(`active-${i}`);
+                } else {
+                    btn.classList.remove('active-0', 'active-1', 'active-2', 'active-3', 'active-4');
+                }
+            }
+            calcKoreanTotal();
+        }
+
+        function calcKoreanTotal() {
+            let total = 0;
+            for(let i=1; i<=6; i++) {
+                const v = parseInt(document.getElementById(`input-${i}`).value);
+                const max = (i === 2 || i === 6) ? 10 : 20;
+                total += (max === 10) ? SCORES_10[v] : SCORES_20[v];
+            }
+            document.getElementById('korean-total-score').innerHTML = `${total} <span class="text-sm text-slate-400 font-normal">/ 100</span>`;
+            return total;
+        }
+
+        // --- SKILL EVALUATION ---
+        function calcSkillGrade(type) {
+            let val = 0;
+            let displayId = "";
+            let g = "D";
+
+            if (type === 'weld') {
+                val = parseInt(document.getElementById('skill-score-weld').value) || 0;
+                displayId = "skill-grade-weld";
+                if (val >= 91) g = "S"; else if (val >= 76) g = "A"; else if (val >= 61) g = "B"; else if (val >= 51) g = "C"; else g = "D";
+            } else if (type === 'fit') {
+                val = parseInt(document.getElementById('skill-score-fit').value) || 0;
+                displayId = "skill-grade-fit";
+                if (val >= 91) g = "S"; else if (val >= 76) g = "A"; else if (val >= 61) g = "B"; else if (val >= 51) g = "C"; else g = "D";
+            }
+
+            const el = document.getElementById(displayId);
+            if(el) {
+                el.innerText = g;
+                el.className = `text-4xl font-black ${g==='S'||g==='A'?'text-purple-600':(type==='weld' && g==='B') || (type==='fit' && (g==='B'||g==='C'))?'text-green-600':'text-red-500'}`;
+            }
+        }
+
+        // --- QUESTIONS ---
+        function shuffleQuestions() {
+            if(!currentId) return;
+            const p = candidates.find(c => c.id === currentId);
+            if(!p) return;
+            let seed = 0;
+            for(let i=0; i<p.no.length; i++) seed += p.no.charCodeAt(i);
+            
+            activeQSets = [];
+            let indices = Array.from({length: QUESTIONS_DB.length}, (_, i) => i);
+            for(let i=0; i<3; i++) {
+                let idx = (seed + (i * 7)) % indices.length;
+                activeQSets.push(indices[idx]);
+                indices.splice(idx, 1);
+            }
+            
+            currentQPage = 0;
+            renderQuestions();
+        }
+        
+        document.getElementById('btn-shuffle').onclick = () => {
+             if(confirm('질문 세트를 변경하시겠습니까? (이 기기에서만 변경됩니다)')) {
+                 let indices = Array.from({length: QUESTIONS_DB.length}, (_, i) => i);
+                 activeQSets = [];
+                 for(let i=0; i<3; i++) {
+                    const r = Math.floor(Math.random() * indices.length);
+                    activeQSets.push(indices[r]);
+                    indices.splice(r, 1);
+                 }
+                 currentQPage = 0;
+                 renderQuestions();
+             }
+        };
+        
+        function changeQPage() { currentQPage = (currentQPage + 1) % 3; renderQuestions(); }
+        
+        function renderQuestions() {
+            const setIdx = activeQSets[currentQPage];
+            if (setIdx === undefined) return;
+            
+            document.getElementById('q-page-num').innerText = `${currentQPage + 1} / 3 (SET ${setIdx+1})`;
+            const container = document.getElementById('question-container');
+            container.innerHTML = QUESTIONS_DB[setIdx].map((qStr, idx) => {
+                const [q, a] = qStr.split('→');
+                return `<div class="p-4 rounded-xl bg-white border border-indigo-100 shadow-sm"><p class="font-bold text-slate-800 text-base mb-2"><span class="text-indigo-500 mr-2">Q${idx+1}.</span> ${q.replace('[신규]', '').trim()}${q.includes('[신규]') ? '<span class="ml-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">NEW</span>' : ''}</p>${a ? `<div class="pl-4 border-l-2 border-indigo-200 text-sm text-slate-500">${a.trim()}</div>` : ''}</div>`;
+            }).join('');
+            // Reset scroll to top when rendering new questions
+            container.scrollTop = 0;
+        }
+
+        // --- DATA LOAD/SAVE ---
+        function updateCandidateSelect() {
+            const s = document.getElementById('candidate-select');
+            const countryFilter = document.getElementById('eval-filter-country').value;
+            const agencyFilter = document.getElementById('eval-filter-agency').value;
+            
+            s.innerHTML = '';
+            
+            let filtered = candidates;
+            filtered = filtered.filter(c => !(c.k_status === '완료' && c.s_status === '완료'));
+
+            if(countryFilter !== 'all') filtered = filtered.filter(c => c.country === countryFilter);
+            if(agencyFilter !== 'all') filtered = filtered.filter(c => c.agency === agencyFilter);
+
+            if(!filtered.length) { s.add(new Option('평가 대상 없음', '')); s.disabled = true; return; }
+            s.disabled = false;
+            
+            filtered.sort((a, b) => a.no.localeCompare(b.no, 'en', {numeric: true}));
+            
+            filtered.forEach(c => {
+                let label = `[${c.no}] ${c.name}`;
+                if(c.k_status === '완료') label += ' (한)';
+                if(c.s_status === '완료') label += ' (기)';
+                s.add(new Option(label, c.id));
+            });
+            s.onchange = () => loadCandidate(s.value);
+            if(currentId && filtered.find(c=>c.id==currentId)) s.value = currentId; 
+            else loadCandidate(filtered[0].id);
+        }
+
+        function loadCandidate(id) {
+            if(!id) return;
+            currentId = parseInt(id);
+            const p = candidates.find(c => c.id === currentId);
+            
+            document.getElementById('badge-job').innerText = p.job;
+            document.getElementById('badge-info').innerText = `E-9: ${p.e9} / ${p.age}세 / ${p.country}_${p.agency}`;
+
+            // Korean Restore
+            const kVals = p.k_vals || [2,2,2,2,2,2];
+            for(let i=1; i<=6; i++) { 
+                const max = (i === 2 || i === 6) ? 10 : 20;
+                // Important: Set value to hidden input first
+                document.getElementById(`input-${i}`).value = kVals[i-1];
+                // Then visually update buttons
+                updateEvalUI(i, kVals[i-1]); 
+            }
+
+            // Skill UI
+            const container = document.getElementById('skill-forms-container');
+            container.innerHTML = '';
+            const isFit = (p.job || "").includes("취부");
+            let html = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">🔥 용접(Welding) 평가</h4>
+                    <div class="flex items-center gap-4 mb-2">
+                        <input type="number" id="skill-score-weld" class="w-full text-center text-4xl font-black border-b-4 border-slate-200 focus:border-hd-blue outline-none py-2 bg-transparent" placeholder="0" oninput="calcSkillGrade('weld')">
+                        <div class="text-center"><p class="text-xs text-slate-400 font-bold uppercase">Grade</p><p class="text-4xl font-black text-slate-300" id="skill-grade-weld">-</p></div>
+                    </div>
+                    <p class="text-xs text-slate-500">* 61점 이상 (B등급) 합격</p>
+                </div>`;
+            if (isFit) {
+                html = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">📏 취부(Fitting) 평가</h4>
+                    <div class="flex items-center gap-4 mb-2">
+                        <input type="number" id="skill-score-fit" class="w-full text-center text-4xl font-black border-b-4 border-slate-200 focus:border-hd-blue outline-none py-2 bg-transparent" placeholder="0" oninput="calcSkillGrade('fit')">
+                        <div class="text-center"><p class="text-xs text-slate-400 font-bold uppercase">Grade</p><p class="text-4xl font-black text-slate-300" id="skill-grade-fit">-</p></div>
+                    </div>
+                    <p class="text-xs text-slate-500">* 51점 이상 (C등급) 합격</p>
+                </div>` + html;
+            }
+            container.innerHTML = html;
+            
+            if(document.getElementById('skill-score-weld')) {
+                document.getElementById('skill-score-weld').value = p.s_score_weld || 0;
+                calcSkillGrade('weld');
+            }
+            if(document.getElementById('skill-score-fit')) {
+                document.getElementById('skill-score-fit').value = p.s_score_fit || 0;
+                calcSkillGrade('fit');
+            }
+            document.getElementById('skill-memo').value = p.memo || '';
+            shuffleQuestions();
+        }
+
+        function determineResult(p) {
+            // New logic based on provided rules
+            // Basic Checks
+            if (p.k_status !== '완료') return '한국어 미평가';
+            if (p.s_status !== '완료') return '기량 미평가';
+            
+            const kScore = p.k_score;
+            const age = p.age;
+            // const isE9 = (p.e9 === 'O'); // No longer needed for cutoff logic
+            const isFit = (p.job||'').includes('취부');
+            
+            // Welding Grade Checks (based on score)
+            const sWeld = p.s_score_weld || 0;
+            const sFit = p.s_score_fit || 0;
+            
+            const weld_B = sWeld >= 61; // B grade or higher
+            const fit_C = sFit >= 51; // C grade or higher
+            const fit_D = sFit >= 40 && sFit <= 50; // D grade range
+
+            // Determine Pass Cutoff based on Age (Updated Rule)
+            let cutoff = 60;
+            if (age >= 40) cutoff = 70; // 40세 이상은 무조건 70점
+
+            if (isFit) {
+                // FITTING JOB RULES
+                // Prerequisite: Welding must be B grade or higher
+                if (!weld_B) return '불합격 (용접 기량 미달)';
+                
+                // 1. Pass
+                if (kScore >= cutoff && fit_C) return '최종 합격';
+                
+                // 2. Conditional 1
+                if (kScore >= 45 && kScore <= 59 && age <= 29 && fit_C) return '조건부 합격 (1순위)';
+                
+                // 3. Conditional 2
+                if (kScore >= 45 && kScore <= 59 && age <= 29 && fit_D) return '조건부 합격 (2순위)';
+                
+                // 4. Conditional 3
+                if (kScore >= 40 && kScore <= 44 && age <= 25 && fit_D) return '조건부 합격 (3순위)';
+                
+                return '불합격';
+            } else {
+                // WELDING JOB RULES
+                // 1. Pass
+                if (kScore >= cutoff && weld_B) return '최종 합격';
+                
+                // 2. Conditional 1
+                if (kScore >= 45 && kScore <= 59 && age <= 29 && weld_B) return '조건부 합격 (1순위)';
+                
+                // 3. Conditional 2
+                if (kScore >= 40 && kScore <= 44 && age <= 25 && weld_B) return '조건부 합격 (2순위)';
+                
+                return '불합격';
+            }
+        }
+
+        async function saveCurrentEval() {
+            if(!currentId) return alert('평가 대상자가 없습니다.');
+            const p = candidates.find(c => c.id === currentId);
+
+            if(currentTab === 'korean') {
+                if(p.k_status === '완료' && !confirm('이미 저장된 한국어 평가가 있습니다. 덮어쓰시겠습니까?')) return;
+                let total = 0, vals = [], actualScores = [];
+                for(let i=1; i<=6; i++) {
+                    const v = parseInt(document.getElementById(`input-${i}`).value);
+                    vals.push(v);
+                    const max = (i === 2 || i === 6) ? 10 : 20;
+                    const s = (max === 10) ? SCORES_10[v] : SCORES_20[v];
+                    actualScores.push(s);
+                    total += s;
+                }
+                p.k_vals = vals; p.k_scores_actual = actualScores;
+                p.k_score = total; p.k_status = '완료';
+            } else {
+                if(p.s_status === '완료' && !confirm('이미 저장된 기량 평가가 있습니다. 덮어쓰시겠습니까?')) return;
+                const wInput = document.getElementById('skill-score-weld');
+                if(wInput) { p.s_score_weld = parseInt(wInput.value) || 0; p.grade_weld = document.getElementById('skill-grade-weld').innerText; }
+                const fInput = document.getElementById('skill-score-fit');
+                if(fInput) { p.s_score_fit = parseInt(fInput.value) || 0; p.grade_fit = document.getElementById('skill-grade-fit').innerText; }
+                
+                const isFit = (p.job||'').includes('취부');
+                if(isFit && (!wInput.value || !fInput.value)) return alert('취부 직종은 용접/취부 점수 모두 입력해야 합니다.');
+                p.memo = document.getElementById('skill-memo').value;
+                p.s_status = '완료';
+            }
+
+            p.result = determineResult(p);
+
+            alert('저장되었습니다.', 'success');
+
+            if(gasUrl) {
+                const payload = { ...p, country: p.country, agency: p.agency };
+                try {
+                    await fetch(gasUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                } catch(e) { console.error(e); }
+            }
+            
+            // --- AUTO NEXT LOGIC ---
+            const cFilter = document.getElementById('eval-filter-country').value;
+            const aFilter = document.getElementById('eval-filter-agency').value;
+            let list = candidates.filter(c => !(c.k_status === '완료' && c.s_status === '완료')); // Same logic as updateCandidateSelect
+            if(cFilter !== 'all') list = list.filter(c => c.country === cFilter);
+            if(aFilter !== 'all') list = list.filter(c => c.agency === aFilter);
+            list.sort((a, b) => a.no.localeCompare(b.no, 'en', {numeric: true}));
+            
+            // Since p might have just been completed (if it was the last step), it might be removed from 'list' in the next render.
+            // But we need to find the NEXT one relative to p's position in the sorted list BEFORE it disappears or changes status.
+            // Actually, 'list' above filters out fully completed.
+            // If p became fully completed just now, it won't be in 'list'.
+            // If p is partially completed, it IS in 'list'.
+            
+            // We need the full list to find next.
+            let fullList = candidates.slice(); // Copy
+            if(cFilter !== 'all') fullList = fullList.filter(c => c.country === cFilter);
+            if(aFilter !== 'all') fullList = fullList.filter(c => c.agency === aFilter);
+            fullList.sort((a, b) => a.no.localeCompare(b.no, 'en', {numeric: true}));
+            
+            const currIndex = fullList.findIndex(c => c.id === currentId);
+            
+            // Refresh UI first
+            renderDashboard();
+            updateCandidateSelect(); 
+            
+            // Move to next
+            if (currIndex !== -1 && currIndex + 1 < fullList.length) {
+                 const nextP = fullList[currIndex + 1];
+                 // Check if nextP is available in the dropdown (not fully completed)
+                 // If nextP is fully completed, we should skip it?
+                 // The requirement says "Next order name". Usually implies next incomplete.
+                 // Let's find the next INCOMPLETE one from the current index onwards.
+                 
+                 let nextIncompleteId = null;
+                 for(let i = currIndex + 1; i < fullList.length; i++) {
+                     if (!(fullList[i].k_status === '완료' && fullList[i].s_status === '완료')) {
+                         nextIncompleteId = fullList[i].id;
+                         break;
+                     }
+                 }
+                 
+                 if(nextIncompleteId) {
+                     const sel = document.getElementById('candidate-select');
+                     sel.value = nextIncompleteId;
+                     loadCandidate(nextIncompleteId);
+                 }
+            }
+        }
+
+        // --- DASHBOARD ---
+        let chartK = null, chartS = null;
+        function renderDashboard() {
+            const cFilter = document.getElementById('dash-filter-country').value;
+            const aFilter = document.getElementById('dash-filter-agency').value;
+            let filtered = candidates;
+            if(cFilter !== 'all') filtered = filtered.filter(c => c.country === cFilter);
+            if(aFilter !== 'all') filtered = filtered.filter(c => c.agency === aFilter);
+            filtered = sortData(filtered, dashboardSort.col, dashboardSort.asc);
+
+            const total = filtered.length;
+            const kComp = filtered.filter(c => c.k_status === '완료').length;
+            const sComp = filtered.filter(c => c.s_status === '완료').length;
+            
+            const kPass = filtered.filter(c => {
+                 if(c.k_status !== '완료') return false;
+                 const cutoff = (c.age >= 40) ? 70 : 60;
+                 return c.k_score >= cutoff;
+            }).length;
+
+            const sPass = filtered.filter(c => {
+                 if(c.s_status !== '완료') return false;
+                 const isFit = (c.job||'').includes('취부');
+                 return isFit ? (c.s_score_fit >= 51) : (c.s_score_weld >= 61);
+            }).length;
+
+            document.getElementById('dash-k-total').innerText = total;
+            document.getElementById('dash-k-comp').innerText = kComp;
+            document.getElementById('dash-k-rate').innerText = kComp ? Math.round((kPass/kComp)*100)+'%' : '0%';
+            document.getElementById('dash-s-total').innerText = total;
+            document.getElementById('dash-s-comp').innerText = sComp;
+            document.getElementById('dash-s-rate').innerText = sComp ? Math.round((sPass/sComp)*100)+'%' : '0%';
+
+            const draw = (id, c, t, col) => {
+                const ctx = document.getElementById(id).getContext('2d');
+                return new Chart(ctx, { type: 'doughnut', data: { labels: ['완료', '대기'], datasets: [{ data: [c, t-c], backgroundColor: [col, '#e2e8f0'], borderWidth: 0 }] }, options: { responsive: true, cutout: '75%', plugins: { legend: { display: false } } } });
+            };
+            if(window.chartK) window.chartK.destroy(); window.chartK = draw('chartKorean', kComp, total, '#3b82f6');
+            if(window.chartS) window.chartS.destroy(); window.chartS = draw('chartSkill', sComp, total, '#f97316');
+
+            const tbody = document.getElementById('recent-table-body');
+            const list = filtered.filter(c => c.k_status === '완료' || c.s_status === '완료');
+            if(!list.length) tbody.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-slate-400">내역 없음</td></tr>';
+            else tbody.innerHTML = list.map(c => `
+                <tr class="bg-white border-b hover:bg-slate-50">
+                    <td class="px-6 py-4 font-bold text-slate-500 text-center">${c.no}</td>
+                    <td class="px-6 py-4 font-bold text-slate-800 text-center">${c.name}</td>
+                    <td class="px-6 py-4 text-slate-600 text-center">${c.job}</td>
+                    <td class="px-6 py-4 text-slate-500 text-xs text-center">${c.age}세 / ${c.e9}</td>
+                    <td class="px-6 py-4 text-center font-bold text-blue-600">${c.k_status==='완료'?c.k_score:'-'}</td>
+                    <td class="px-6 py-4 text-center font-bold text-orange-500">${c.s_status==='완료' ? ((c.job.includes('취부')?`W:${c.grade_weld}/F:${c.grade_fit}`:c.grade_weld)) : '-'}</td>
+                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${c.result.includes('합격')?'bg-green-100 text-green-700':c.result.includes('대기')?'bg-slate-100 text-slate-500':'bg-red-100 text-red-600'}">${c.result}</span></td>
+                </tr>
+            `).join('');
+            updateSortIcons('dash', dashboardSort);
+        }
+
+        // --- SORTING ---
+        function handleSort(view, col) {
+            let sortState = view === 'dash' ? dashboardSort : adminSort;
+            if(sortState.col === col) sortState.asc = !sortState.asc;
+            else { sortState.col = col; sortState.asc = true; }
+            view === 'dash' ? renderDashboard() : renderAdminTable();
+        }
+        function sortData(list, col, asc) {
+            return list.sort((a,b) => {
+                let vA = a[col], vB = b[col];
+                if(col==='k_score'||col==='age') { vA=Number(vA)||0; vB=Number(vB)||0; }
+                else if(col==='no') return asc ? a.no.localeCompare(b.no, 'en', {numeric:true}) : b.no.localeCompare(a.no, 'en', {numeric:true});
+                else { vA=(vA||'').toString().toLowerCase(); vB=(vB||'').toString().toLowerCase(); }
+                return vA < vB ? (asc ? -1 : 1) : vA > vB ? (asc ? 1 : -1) : 0;
+            });
+        }
+        function updateSortIcons(view, state) {
+            const ths = document.querySelectorAll(`#${view}-table-body`).length ? document.getElementById(`${view}-table-body`).previousElementSibling.querySelectorAll('th.sortable') : [];
+            ths.forEach(th => {
+                const icon = th.querySelector('i');
+                if(th.getAttribute('onclick').includes(state.col)) { th.classList.add('active'); icon.className = state.asc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down'; }
+                else { th.classList.remove('active'); icon.className = 'fa-solid fa-sort'; }
+            });
+        }
+
+        // --- UPLOAD & ADMIN ---
+        function uploadExcel(input) {
+            if(!confCountry || !confAgency) { alert('국가/업체를 먼저 설정하세요.', 'error'); input.value=''; return; }
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+                const rows = json.slice(4);
+                let idc = candidates.length + 1;
+                const today = new Date();
+
+                const newCandidates = rows.map(r => {
+                    if(!r[1]) return null;
+                    let e9 = (r[5] || 'X').toString().toUpperCase().trim();
+                    e9 = (['O','0','YES'].includes(e9)) ? 'O' : 'X';
+                    let age = 0;
+                    if(r[4]) {
+                        let dob = (typeof r[4] === 'number') ? new Date(Math.round((r[4]-25569)*86400*1000)) : new Date(r[4]);
+                        if(!isNaN(dob)) {
+                            age = today.getFullYear() - dob.getFullYear();
+                            if(today.getMonth() < dob.getMonth() || (today.getMonth()===dob.getMonth() && today.getDate() < dob.getDate())) age--;
+                        }
+                    }
+                    return {
+                        id: idc++, no: r[1], job: r[2], name: r[3], dob: r[4], age: age, e9: e9,
+                        country: confCountry, agency: confAgency, // Tagging
+                        k_status: '대기', k_score: 0, s_status: '대기', s_score_weld: 0, s_score_fit: 0, grade_weld: '-', grade_fit: '-', result: '대기', memo: ''
+                    };
+                }).filter(Boolean);
+                
+                candidates = candidates.concat(newCandidates);
+                updateFilters(); updateCandidateSelect(); renderDashboard(); renderAdminTable();
+                alert(`업로드 완료: ${newCandidates.length}명`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function toggleCheckAll(source) {
+            const checkboxes = document.querySelectorAll('.del-check');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+        }
+
+        function deleteSelected() {
+            const checkboxes = document.querySelectorAll('.del-check:checked');
+            if(checkboxes.length === 0) return alert('삭제할 대상을 선택하세요.');
+            if(!confirm(`${checkboxes.length}명을 삭제하시겠습니까?`)) return;
+            
+            const idsToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            candidates = candidates.filter(c => !idsToDelete.includes(c.id));
+            
+            updateFilters(); updateCandidateSelect(); renderDashboard(); renderAdminTable();
+            alert('삭제되었습니다.', 'success');
+        }
+
+        function updateFilters() {
+            const countries = [...new Set(candidates.map(c => c.country))];
+            const agencies = [...new Set(candidates.map(c => c.agency))];
+            const update = (id) => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="all">전체</option>';
+                (id.includes('country') ? countries : agencies).forEach(item => sel.add(new Option(item, item)));
+            };
+            ['dash-filter-country','dash-filter-agency','eval-filter-country','eval-filter-agency','admin-filter-country','admin-filter-agency'].forEach(id => {
+                if(id.includes('country')) update(id, countries); else update(id, agencies);
+            });
+        }
+
+        function renderAdminTable() {
+            const cFilter = document.getElementById('admin-filter-country').value;
+            const aFilter = document.getElementById('admin-filter-agency').value;
+            let list = candidates;
+            if(cFilter !== 'all') list = list.filter(c => c.country === cFilter);
+            if(aFilter !== 'all') list = list.filter(c => c.agency === aFilter);
+            list = sortData(list, adminSort.col, adminSort.asc);
+
+            document.getElementById('admin-count').innerText = list.length + '명';
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = list.map(c => `
+                <tr class="bg-white border-b hover:bg-slate-50 cursor-pointer" onclick="loadSaved(${c.id})">
+                    <td class="px-4 py-3 text-center"><input type="checkbox" class="del-check" value="${c.id}" onclick="event.stopPropagation()"></td>
+                    <td class="px-6 py-3 font-bold text-slate-500 text-center">${c.no}</td>
+                    <td class="px-6 py-3 font-bold text-slate-800 text-center">${c.name}</td>
+                    <td class="px-6 py-3 text-slate-600 text-center">${c.job}</td>
+                    <td class="px-6 py-3 text-center text-xs text-slate-500">${c.country}/${c.agency}</td>
+                    <td class="px-6 py-3 text-center font-bold">${c.result}</td>
+                </tr>`).join('');
+            updateSortIcons('admin', adminSort);
+        }
+        function loadSaved(id) { navTo('evaluation'); document.getElementById('candidate-select').value = id; loadCandidate(id); }
+        
+        function saveUploadConfig() {
+            confCountry = document.getElementById('conf-country').value;
+            confAgency = document.getElementById('conf-agency').value;
+            if(!confCountry || !confAgency) return alert('입력 확인 필요', 'error');
+            localStorage.setItem('confCountry', confCountry); localStorage.setItem('confAgency', confAgency);
+            updateHeaderLocation(); alert('저장 완료', 'success');
+        }
+        function saveGasUrl() {
+            gasUrl = document.getElementById('gas-url').value;
+            localStorage.setItem('gasUrl', gasUrl); alert('URL 저장 완료', 'success');
+        }
+        window.alert = (m,t='info') => {
+            const d=document.createElement('div'); d.className=`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-[9999] text-white font-bold text-sm fade-in ${t==='success'?'bg-green-600':'bg-slate-800'}`;
+            d.innerText = m; document.body.appendChild(d); setTimeout(()=>d.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
