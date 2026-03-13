@@ -285,7 +285,8 @@
     </main>
 
 <script>
-let gasUrl = localStorage.getItem('gasUrl') || "https://script.google.com/macros/s/AKfycbzEHH2Ht0wpmRWy8SwCd3o49_EfBqvwTy_KMwkCSLhbaXYayzrjJCdzabD5FLjKBzl4/exec";
+let gasUrl = "https://script.google.com/macros/s/AKfycbzURkfSaFhfkBN2VlxluRP68iwwEZ8q8q4I2z8js72GolK0Mh7PtT1jzBd1fb8DxXZg/exec";
+localStorage.setItem('gasUrl', gasUrl); // 캐시된 예전 URL을 덮어쓰기 위해 강제 업데이트
 
 let candidates=[], globalLogs=[], currentId=null, currentTab='korean', evaluatorName="";
 let confCountry=localStorage.getItem('confCountry')||"", confAgency=localStorage.getItem('confAgency')||"";
