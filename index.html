@@ -778,9 +778,9 @@ async function attemptLogin(){
     const rightPanel=document.getElementById('eval-right-panel');
     const adminNav=document.getElementById('nav-admin');
     
-    if(hashedPw === '1ac640'){ // 9999: 한국어 인터뷰 평가자
-        userRole='evaluator';
-        document.getElementById('user-role-label').innerText=evaluatorName + " (인터뷰)";
+    if(hashedPw === '1ac640'){ // 9999: 인터뷰어 전용
+        userRole='interviewer';
+        document.getElementById('user-role-label').innerText=evaluatorName + " (인터뷰어)";
         document.getElementById('user-icon').innerText=evaluatorName.charAt(0);
         
         document.getElementById('app-header').classList.remove('hidden');
@@ -790,24 +790,18 @@ async function attemptLogin(){
         intUploadBtn.style.display='none';
         adminNav.classList.add('hidden');
         
-        // 왼쪽(인터뷰 문항), 오른쪽(평가 폼) 모두 표시
-        leftPanel.classList.remove('hidden'); leftPanel.style.display='flex';
-        rightPanel.classList.remove('hidden', 'w-full'); 
-        rightPanel.classList.add('w-full', 'md:w-7/12');
-        rightPanel.style.display='flex';
-        
-        // 기량 검증 탭 완전 숨김
-        document.getElementById('eval-tabs-container').style.display = 'flex';
-        document.getElementById('tab-skill').classList.add('hidden');
-        document.getElementById('tab-korean').classList.remove('hidden');
+        // 왼쪽(인터뷰 문항)만 전체 화면으로 표시, 오른쪽(평가 폼) 숨김
+        leftPanel.classList.remove('hidden', 'md:w-5/12'); 
+        leftPanel.style.display='flex';
+        rightPanel.classList.add('hidden');
+        rightPanel.style.display='none';
         
         overlay.style.display='none';
         navTo('evaluation'); // 대시보드를 건너뛰고 평가 화면으로 직행
-        setTab('korean');
         updateCandidateSelect(); 
-    } else if(hashedPw === '18e942'){ // 5678: 현장 기량 평가자
-        userRole='interviewer';
-        document.getElementById('user-role-label').innerText=evaluatorName + " (현장)";
+    } else if(hashedPw === '18e942'){ // 5678: 평가자 전용
+        userRole='evaluator';
+        document.getElementById('user-role-label').innerText=evaluatorName + " (평가자)";
         document.getElementById('user-icon').innerHTML='<i class="fa-solid fa-helmet-safety"></i>';
         
         document.getElementById('app-header').classList.remove('hidden');
@@ -816,17 +810,23 @@ async function attemptLogin(){
         nav.style.display='none'; // 대시보드 네비게이션 숨김
         intUploadBtn.style.display='flex';
         
-        // 왼쪽(인터뷰 문항) 숨김, 오른쪽(기량 평가) 100% 확장
-        leftPanel.style.display='none';
-        rightPanel.classList.remove('hidden', 'md:w-7/12'); 
-        rightPanel.classList.add('w-full');
+        // 왼쪽(인터뷰 문항)과 오른쪽(평가 폼) 모두 표시
+        leftPanel.classList.remove('hidden', 'w-full'); 
+        leftPanel.classList.add('md:w-5/12');
+        leftPanel.style.display='flex';
+        
+        rightPanel.classList.remove('hidden', 'w-full'); 
+        rightPanel.classList.add('md:w-7/12');
         rightPanel.style.display='flex';
         
-        document.getElementById('eval-tabs-container').style.display = 'none'; // 탭 바 전체 숨김
+        // 탭 바 표시 및 모든 탭 활성화
+        document.getElementById('eval-tabs-container').style.display = 'flex';
+        document.getElementById('tab-skill').classList.remove('hidden');
+        document.getElementById('tab-korean').classList.remove('hidden');
         
         overlay.style.display='none';
         navTo('evaluation');
-        setTab('skill'); 
+        setTab('korean'); 
     } else { alert("인가되지 않은 접근 코드입니다.","error"); }
 }
 
