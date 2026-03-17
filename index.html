@@ -3,190 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HD현대삼호 외국인 평가 시스템</title>
+    <title>HD현대삼호 외국인 평가 시스템 - DX HUD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- 암호화 라이브러리 추가 (샌드박스 환경 지원용) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
-    <!-- 최신 DX UI의 핵심인 Pretendard 폰트 적용 -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    
+    <!-- 1. Typography: Google Fonts Import -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --hd-blue: #002B5C;
-            --hd-blue-light: #004085;
-            --hd-green: #008C46;
-            --bg-body: #F0F4F8;
-            --card-border: rgba(226, 232, 240, 0.8);
+            --dx-bg: #030712; /* 매우 어두운 밤하늘색 */
+            --dx-cyan: #22d3ee;
+            --dx-cyan-glow: rgba(34, 211, 238, 0.5);
+            /* 명도 대비를 위해 카드 배경 불투명도 유지 */
+            --dx-card-bg: rgba(15, 23, 42, 0.95);
+            --dx-border: rgba(51, 65, 85, 0.9);
         }
 
+        /* Typography Classes */
+        .font-kor { font-family: 'Noto Sans KR', sans-serif; }
+        .font-eng { font-family: 'Rajdhani', sans-serif; }
+        .font-tech { font-family: 'Orbitron', sans-serif; }
+
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
-            background-color: var(--bg-body);
-            color: #1e293b;
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--dx-bg);
+            color: #f1f5f9; /* 기본 텍스트 색상을 밝게 (slate-100) */
             overflow: hidden;
             touch-action: manipulation;
             -webkit-font-smoothing: antialiased;
+            /* 3-1. Background Grid */
+            background-image: 
+                linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center center;
         }
-        
-        .text-hd-blue { color: var(--hd-blue); }
-        .bg-hd-blue { background-color: var(--hd-blue); }
-        .text-hd-green { color: var(--hd-green); }
-        .bg-hd-green { background-color: var(--hd-green); }
 
-        /* 모던 스크롤바 */
+        /* 3-1. Scanline Animations */
+        .hud-scanline {
+            position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+            background: linear-gradient(to bottom, transparent 50%, rgba(34, 211, 238, 0.02) 51%, transparent 100%);
+            background-size: 100% 4px;
+        }
+        .hud-scanline-bar {
+            position: fixed; top: -10vh; left: 0; width: 100%; height: 15vh;
+            background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.05), transparent);
+            animation: scan 8s linear infinite; pointer-events: none; z-index: 9999;
+        }
+        @keyframes scan { 0% { top: -20vh; } 100% { top: 120vh; } }
+
+        /* 모던 스크롤바 (다크 테마) */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        ::-webkit-scrollbar-track { background: rgba(15,23,42,0.8); }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #22d3ee; }
 
-        /* 네비게이션 탭 (Glassmorphism 적용) */
-        .nav-btn {
-            color: rgba(255,255,255,0.7);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            white-space: nowrap;
+        /* 3-2. Glass Card (Corner Brackets) */
+        .hud-card {
+            background: var(--dx-card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--dx-border);
+            border-radius: 4px;
             position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
         }
-        .nav-btn:hover { color: white; background-color: rgba(255,255,255,0.15); }
-        .nav-btn.active {
-            background-color: white;
-            color: var(--hd-blue);
+        .hud-card:hover {
+            box-shadow: 0 8px 32px var(--dx-cyan-glow);
+            border-color: rgba(34, 211, 238, 0.4);
+        }
+        .hud-card::before, .hud-card::after {
+            content: ''; position: absolute; width: 15px; height: 15px; 
+            border-color: var(--dx-cyan); border-style: solid; pointer-events: none;
+            transition: all 0.3s;
+        }
+        .hud-card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .hud-card::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+        .hud-card:hover::before { width: 25px; height: 25px; }
+        .hud-card:hover::after { width: 25px; height: 25px; }
+
+        /* 3-5. Inputs */
+        .hud-input {
+            width: 100%;
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--dx-border);
+            border-left: 2px solid var(--dx-cyan);
+            border-radius: 2px;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #ffffff;
+            transition: all 0.3s;
+        }
+        .hud-input:focus {
+            background-color: rgba(15, 23, 42, 1);
+            border-color: var(--dx-cyan);
+            box-shadow: 0 0 12px rgba(34, 211, 238, 0.3);
+            outline: none;
+        }
+
+        /* 3-3. Buttons (Premium) */
+        .hud-btn {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 145, 178, 0.8));
+            border: 1px solid #22d3ee;
+            color: #ffffff;
             font-weight: 800;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-            transform: translateY(-1px);
+            position: relative;
+            overflow: hidden;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        .hud-btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transform: skewX(-25deg); transition: 0.5s;
+        }
+        .hud-btn:hover {
+            box-shadow: 0 0 15px var(--dx-cyan-glow);
+            background: linear-gradient(135deg, rgba(8, 145, 178, 0.9), rgba(15, 23, 42, 0.95));
+            text-shadow: 0 0 5px #ffffff;
+        }
+        .hud-btn:hover::before { left: 200%; }
+        .hud-btn:active { transform: scale(0.98); }
+
+        /* 네비게이션 탭 */
+        .nav-btn {
+            color: #94a3b8;
+            font-weight: 700;
+            transition: all 0.3s;
+            position: relative;
+            border-radius: 2px;
+            border: 1px solid transparent;
+        }
+        .nav-btn:hover { color: #ffffff; background: rgba(34, 211, 238, 0.15); border-color: rgba(34, 211, 238, 0.3); }
+        .nav-btn.active {
+            background: rgba(34, 211, 238, 0.15);
+            color: var(--dx-cyan);
+            border-color: rgba(34, 211, 238, 0.5);
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+            text-shadow: 0 0 5px rgba(34, 211, 238, 0.5);
         }
 
-        /* DX 모던 카드 UI */
-        .dx-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-            border: 1px solid var(--card-border);
-            backdrop-filter: blur(10px);
-            transition: box-shadow 0.3s ease;
+        /* 점수 평가 버튼 */
+        .score-btn {
+            flex: 1; height: 46px; border-radius: 2px; border: 1px solid #475569; background-color: rgba(30,41,59,0.8);
+            color: #cbd5e1; font-weight: 700; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+            position: relative; overflow: hidden;
         }
-        .dx-card:hover {
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-        }
+        .score-btn:hover { background-color: rgba(34, 211, 238, 0.1); border-color: var(--dx-cyan); color: #ffffff; }
+        
+        .score-btn.active-0 { border-color: #ef4444; color: #ffffff; background: #991b1b; box-shadow: inset 0 0 10px rgba(239,68,68,0.5); text-shadow: 0 0 4px #000; }
+        .score-btn.active-1 { border-color: #f97316; color: #ffffff; background: #9a3412; box-shadow: inset 0 0 10px rgba(249,115,22,0.5); text-shadow: 0 0 4px #000; }
+        .score-btn.active-2 { border-color: #eab308; color: #ffffff; background: #854d0e; box-shadow: inset 0 0 10px rgba(234,179,8,0.5); text-shadow: 0 0 4px #000; }
+        .score-btn.active-3 { border-color: #10b981; color: #ffffff; background: #065f46; box-shadow: inset 0 0 10px rgba(16,185,129,0.5); text-shadow: 0 0 4px #000; }
+        .score-btn.active-4 { border-color: var(--dx-cyan); color: #ffffff; background: #164e63; box-shadow: inset 0 0 10px rgba(34,211,238,0.5); text-shadow: 0 0 4px #000; }
 
-        /* 애니메이션 */
+        /* 테이블 다크 테마 */
+        .dx-table-wrapper { border-radius: 4px; overflow: hidden; border: 1px solid var(--dx-border); background: rgba(15,23,42,0.9); }
+        .dx-table th { background: #0f172a; color: #67e8f9; font-size: 0.75rem; font-weight: 800; padding: 12px 16px; border-bottom: 1px solid var(--dx-cyan); }
+        .dx-table td { padding: 14px 16px; border-bottom: 1px solid rgba(51, 65, 85, 0.6); font-size: 0.875rem; font-weight: 700; color: #f8fafc; }
+        .dx-table tr:hover td { background-color: rgba(34, 211, 238, 0.1); }
+        .dx-table tr:last-child td { border-bottom: none; }
+        th.sortable:hover { background-color: rgba(34,211,238,0.15); color: #ffffff; }
+        th.sortable i { color: #94a3b8; }
+        th.sortable.active i { color: var(--dx-cyan); opacity: 1; text-shadow: 0 0 5px var(--dx-cyan); }
+
+        /* 배지 다크 테마 */
+        .type-badge { padding: 4px 10px; border-radius: 2px; font-size: 10px; font-weight: 900; border: 1px solid; display: inline-block; }
+        .badge-pre { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border-color: #60a5fa; }
+        .badge-main { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border-color: #c084fc; }
+
+        .res-pass { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #4ade80; box-shadow: 0 0 8px rgba(34,197,94,0.3); }
+        .res-cond { background-color: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #facc15; box-shadow: 0 0 8px rgba(234,179,8,0.3); }
+        .res-fail { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #f87171; box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+        .res-wait { background-color: rgba(100, 116, 139, 0.3); color: #cbd5e1; border: 1px solid #94a3b8; }
+
+        /* 기타 유틸 */
         .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
         
-        .hl-red { color: #dc2626; font-weight: 700; background: linear-gradient(180deg, transparent 70%, rgba(254, 202, 202, 0.6) 0); }
-        
-        /* 테이블 정렬 아이콘 */
-        th.sortable { cursor: pointer; user-select: none; transition: background 0.2s; position: relative; padding-right: 24px !important; text-align: center; }
-        th.sortable:hover { background-color: #f1f5f9; }
-        th.sortable i { margin-left: 4px; color: #94a3b8; font-size: 0.8em; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); transition: all 0.2s; }
-        th.sortable.active i { color: var(--hd-blue); opacity: 1; }
+        .hl-red { color: #fca5a5; font-weight: 900; border-bottom: 1px dashed #ef4444; background: rgba(239,68,68,0.2); padding: 0 2px; border-radius: 2px; }
+        .pb-safe { padding-bottom: max(2rem, env(safe-area-inset-bottom)) !important; }
 
-        /* 첨단 로그인 오버레이 */
         #login-overlay {
             position: fixed; inset: 0; z-index: 9999;
             display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #001f42 0%, #004085 100%);
-            background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background: var(--dx-bg);
+            background-image: radial-gradient(rgba(34, 211, 238, 0.2) 1px, transparent 1px);
+            background-size: 30px 30px;
         }
         .login-glass {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 4px;
+            box-shadow: 0 0 40px rgba(34, 211, 238, 0.2);
+            border: 1px solid rgba(34, 211, 238, 0.5);
             backdrop-filter: blur(20px);
+            position: relative;
         }
-
-        /* 점수 평가 버튼 (Tactile Feel) */
-        .score-btn {
-            flex: 1; height: 46px; border-radius: 10px; border: 1px solid #e2e8f0; background-color: #f8fafc;
-            color: #64748b; font-size: 0.9rem; font-weight: 700; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
-            position: relative; overflow: hidden;
+        .login-glass::before, .login-glass::after {
+            content: ''; position: absolute; width: 30px; height: 30px; border-color: var(--dx-cyan); border-style: solid;
         }
-        .score-btn::after {
-            content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 4px; background: transparent; transition: all 0.2s;
-        }
-        .score-btn:hover { background-color: #f1f5f9; border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-        .score-btn:active { transform: translateY(0); }
-        
-        .score-btn.active-0 { background-color: #fef2f2; border-color: #ef4444; color: #b91c1c; box-shadow: 0 4px 8px rgba(239,68,68,0.15); }
-        .score-btn.active-0::after { background: #ef4444; }
-        .score-btn.active-1 { background-color: #fff7ed; border-color: #f97316; color: #c2410c; box-shadow: 0 4px 8px rgba(249,115,22,0.15); }
-        .score-btn.active-1::after { background: #f97316; }
-        .score-btn.active-2 { background-color: #f0fdf4; border-color: #22c55e; color: #15803d; box-shadow: 0 4px 8px rgba(34,197,94,0.15); }
-        .score-btn.active-2::after { background: #22c55e; }
-        .score-btn.active-3 { background-color: #eff6ff; border-color: #3b82f6; color: #1d4ed8; box-shadow: 0 4px 8px rgba(59,130,246,0.15); }
-        .score-btn.active-3::after { background: #3b82f6; }
-        .score-btn.active-4 { background-color: #eef2ff; border-color: #4f46e5; color: #3730a3; box-shadow: 0 4px 8px rgba(79,70,229,0.15); }
-        .score-btn.active-4::after { background: #4f46e5; }
-
-        .pb-safe { padding-bottom: max(2rem, env(safe-area-inset-bottom)) !important; }
-        
-        /* 인풋 스타일 현대화 */
-        .dx-input {
-            width: 100%; border: 2px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;
-            font-size: 1rem; font-weight: 600; color: #334155; transition: all 0.3s;
-            background-color: #f8fafc;
-        }
-        .dx-input:focus { background-color: #ffffff; border-color: var(--hd-blue); box-shadow: 0 0 0 4px rgba(0, 43, 92, 0.1); outline: none; }
-
-        /* 뱃지 */
-        .type-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; letter-spacing: -0.3px; border: 1px solid; display: inline-block; }
-        .badge-pre { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-        .badge-main { background: #fdf4ff; color: #c026d3; border-color: #f5d0fe; }
-
-        /* 최종 결과 전용 명확한 색상 뱃지 */
-        .res-pass { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 900; }
-        .res-cond { background-color: #fef08a; color: #a16207; border: 1px solid #fde047; font-weight: 900; }
-        .res-fail { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 900; }
-        .res-wait { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-weight: 700; }
-
-        /* 테이블 모던 스타일 */
-        .dx-table-wrapper { border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
-        .dx-table th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 16px; border-bottom: 2px solid #e2e8f0; }
-        .dx-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
-        .dx-table tr:hover td { background-color: #f8fafc; }
-        .dx-table tr:last-child td { border-bottom: none; }
+        .login-glass::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+        .login-glass::after { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
     </style>
 </head>
-<body class="h-screen flex flex-col selection:bg-blue-200 selection:text-blue-900">
+<body class="font-kor h-screen flex flex-col selection:bg-cyan-700 selection:text-cyan-50">
     
+    <!-- 3-1. 스캔라인 효과 -->
+    <div class="hud-scanline"></div>
+    <div class="hud-scanline-bar"></div>
+
     <!-- Login Overlay -->
     <div id="login-overlay" class="fade-in">
-        <div class="login-glass p-8 md:p-10 w-[90%] max-w-md text-center relative overflow-hidden">
-            <!-- 장식용 글로우 효과 -->
-            <div class="absolute -top-20 -right-20 w-40 h-40 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-            <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
-
+        <div class="login-glass p-8 md:p-10 w-[90%] max-w-md text-center">
             <div class="relative z-10">
-                <div class="w-20 h-20 bg-gradient-to-br from-[#002B5C] to-[#0052A3] text-white rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5 shadow-xl transform rotate-3 hover:rotate-0 transition-transform">
+                <p class="font-kor font-bold text-[10px] text-cyan-400 tracking-wider mb-3">[ 시스템 인증 필요 ]</p>
+                
+                <div class="w-20 h-20 bg-slate-900 border border-cyan-400 text-cyan-300 rounded-sm flex items-center justify-center text-4xl mx-auto mb-5 shadow-[0_0_20px_rgba(34,211,238,0.4)]">
                     <i class="fa-solid fa-anchor"></i>
                 </div>
-                <h2 class="text-3xl font-black text-slate-800 mb-1 tracking-tight">HD현대삼호</h2>
-                <p class="text-sm text-slate-500 mb-8 font-medium tracking-wide">스마트 기량/한국어 평가 플랫폼</p>
+                <h2 class="text-3xl font-black text-white mb-1 tracking-tight">HD현대삼호</h2>
+                <p class="font-kor text-sm text-cyan-300 mb-8 font-bold tracking-wide">스마트 기량/한국어 평가 플랫폼</p>
                 
                 <div id="evaluator-login-area" class="space-y-4">
                     <div>
-                        <input type="text" id="evaluator-name" class="dx-input text-center !text-lg" placeholder="평가자 성명 (필수)" onkeyup="if(event.key==='Enter') document.getElementById('login-pw').focus()">
+                        <input type="text" id="evaluator-name" class="hud-input text-center !text-lg" placeholder="평가자 성명 (필수)" onkeyup="if(event.key==='Enter') document.getElementById('login-pw').focus()">
                     </div>
                     <div>
-                        <input type="password" id="login-pw" class="dx-input text-center !text-lg" placeholder="접속 코드 입력" onkeyup="if(event.key==='Enter') attemptLogin()">
+                        <input type="password" id="login-pw" class="hud-input text-center !text-lg font-tech tracking-widest" placeholder="접속 코드 입력" onkeyup="if(event.key==='Enter') attemptLogin()">
                     </div>
-                    <button onclick="attemptLogin()" class="w-full bg-gradient-to-r from-[#002B5C] to-[#004085] text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:from-[#001f42] hover:to-[#002B5C] transition-all duration-300 active:scale-[0.98]">
-                        시스템 접속 <i class="fa-solid fa-arrow-right-to-bracket ml-2 opacity-80"></i>
+                    <button onclick="attemptLogin()" class="hud-btn font-kor tracking-wide w-full py-4 font-black text-lg">
+                        시스템 접속 <i class="fa-solid fa-arrow-right-to-bracket ml-2 opacity-90"></i>
                     </button>
                 </div>
 
-                <div id="admin-login-area" class="mt-8 pt-6 border-t border-slate-200">
-                    <button onclick="toggleAdminBox()" id="btn-show-admin" class="text-xs text-slate-400 hover:text-[#002B5C] font-bold block mx-auto transition-colors flex items-center gap-1">
+                <div id="admin-login-area" class="mt-8 pt-6 border-t border-slate-700">
+                    <button onclick="toggleAdminBox()" id="btn-show-admin" class="font-kor tracking-wide text-xs text-slate-300 hover:text-cyan-300 font-bold block mx-auto transition-colors flex items-center gap-1">
                         <i class="fa-solid fa-shield-halved"></i> 관리자 모드
                     </button>
                     <div id="admin-input-box" class="hidden mt-4 space-y-3 fade-in">
-                        <input type="password" id="admin-pw" class="dx-input text-center" placeholder="관리자 마스터 키" onkeyup="if(event.key==='Enter') attemptAdminLogin()">
-                        <button onclick="attemptAdminLogin()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition-colors shadow-md active:scale-[0.98]">
+                        <input type="password" id="admin-pw" class="hud-input text-center font-tech tracking-widest" placeholder="관리자 마스터 키" onkeyup="if(event.key==='Enter') attemptAdminLogin()">
+                        <button onclick="attemptAdminLogin()" class="hud-btn font-kor tracking-wide w-full py-3 font-bold text-base">
                             관리자 권한 인증
                         </button>
                     </div>
@@ -196,91 +261,88 @@
     </div>
 
     <!-- Header -->
-    <header id="app-header" class="hidden bg-gradient-to-r from-[#002B5C] to-[#004085] text-white h-16 md:h-18 px-4 md:px-6 shadow-md flex justify-between items-center shrink-0 z-50">
+    <header id="app-header" class="hidden bg-slate-900/95 border-b border-cyan-600 backdrop-blur-md text-white h-16 md:h-18 px-4 md:px-6 shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex justify-between items-center shrink-0 z-50 relative">
+        <div class="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-cyan-600 via-cyan-300 to-cyan-600"></div>
         <div class="flex items-center gap-3 w-auto md:w-72">
-            <div class="bg-white/10 w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/10 shrink-0">
+            <div class="bg-slate-800 border border-cyan-400 w-10 h-10 rounded-sm flex items-center justify-center text-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.3)] shrink-0">
                 <i class="fa-solid fa-ship text-xl"></i>
             </div>
             <div class="flex flex-col justify-center">
-                <h1 class="font-black text-lg md:text-xl tracking-tight leading-none text-white/95">HD현대삼호</h1>
-                <p class="text-[10px] md:text-xs text-blue-200 font-medium mt-0.5 tracking-wider uppercase">Global Recruiting DX</p>
+                <h1 class="font-black text-lg md:text-xl tracking-tight leading-none text-white">HD현대삼호</h1>
+                <p class="font-kor text-[10px] md:text-xs text-cyan-400 font-bold mt-0.5 tracking-wider">스마트 평가 플랫폼</p>
             </div>
         </div>
-        <nav class="flex gap-1.5 md:gap-2 bg-black/20 p-1.5 rounded-xl overflow-x-auto hide-scrollbar backdrop-blur-sm border border-white/5" id="main-nav">
-            <button onclick="navTo('dashboard')" id="nav-dashboard" class="nav-btn active px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-chart-pie opacity-70 hidden sm:inline"></i>대시보드</button>
-            <button onclick="navTo('evaluation')" id="nav-evaluation" class="nav-btn px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-clipboard-user opacity-70 hidden sm:inline"></i>평가하기</button>
-            <button onclick="navTo('admin')" id="nav-admin" class="nav-btn hidden px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-database opacity-70 hidden sm:inline"></i>시스템 관리</button>
+        <nav class="flex gap-1.5 md:gap-2 p-1.5 rounded-sm overflow-x-auto hide-scrollbar border border-slate-700 bg-slate-950/80" id="main-nav">
+            <button onclick="navTo('dashboard')" id="nav-dashboard" class="nav-btn active px-4 md:px-6 py-2 text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-chart-pie opacity-90 hidden sm:inline"></i>대시보드</button>
+            <button onclick="navTo('evaluation')" id="nav-evaluation" class="nav-btn px-4 md:px-6 py-2 text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-clipboard-user opacity-90 hidden sm:inline"></i>평가하기</button>
+            <button onclick="navTo('admin')" id="nav-admin" class="nav-btn hidden px-4 md:px-6 py-2 text-xs md:text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-database opacity-90 hidden sm:inline"></i>시스템 관리</button>
         </nav>
         <div class="w-auto md:w-72 flex justify-end items-center gap-4 text-xs md:text-sm">
             <div class="text-right hidden lg:block">
-                <p class="font-bold text-white" id="user-role-label">평가자</p>
-                <p class="text-[10px] text-blue-200 font-medium" id="header-location">국가/업체 미설정</p>
+                <p class="font-bold text-white text-sm" id="user-role-label">평가자</p>
+                <p class="font-kor tracking-wide text-[10px] text-cyan-400 font-bold" id="header-location">국가/업체 미설정</p>
             </div>
-            <div class="w-10 h-10 bg-white text-[#002B5C] rounded-full flex items-center justify-center font-black text-lg shadow-[0_0_15px_rgba(255,255,255,0.3)] shrink-0 border-2 border-blue-300/30" id="user-icon">A</div>
+            <div class="w-10 h-10 bg-slate-800 text-cyan-300 rounded-sm flex items-center justify-center font-kor font-black text-lg shadow-[0_0_10px_rgba(34,211,238,0.4)] shrink-0 border border-cyan-400" id="user-icon">A</div>
             
-            <div class="h-6 w-px bg-white/20 mx-1 hidden sm:block"></div>
+            <div class="h-6 w-px bg-slate-600 mx-1 hidden sm:block"></div>
             
             <div class="flex items-center gap-1">
-                <button onclick="refreshDataOnly()" class="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all" title="데이터 새로고침"><i class="fa-solid fa-rotate-right text-lg"></i></button>
-                <button onclick="enterAdminMode()" class="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all hidden sm:flex" title="환경 설정"><i class="fa-solid fa-gear text-lg"></i></button>
-                <button onclick="logout()" class="w-9 h-9 rounded-full flex items-center justify-center text-red-300 hover:text-red-400 hover:bg-red-400/10 transition-all" title="로그아웃"><i class="fa-solid fa-power-off text-lg"></i></button>
+                <button onclick="refreshDataOnly()" class="w-9 h-9 rounded-sm flex items-center justify-center text-slate-300 hover:text-cyan-300 hover:bg-cyan-900/50 border border-slate-600 hover:border-cyan-400 transition-all shadow-sm" title="데이터 새로고침"><i class="fa-solid fa-rotate-right text-lg"></i></button>
+                <button onclick="enterAdminMode()" class="w-9 h-9 rounded-sm flex items-center justify-center text-slate-300 hover:text-cyan-300 hover:bg-cyan-900/50 border border-slate-600 hover:border-cyan-400 transition-all shadow-sm hidden sm:flex" title="환경 설정"><i class="fa-solid fa-gear text-lg"></i></button>
+                <button onclick="logout()" class="w-9 h-9 rounded-sm flex items-center justify-center text-slate-300 hover:text-red-300 hover:bg-red-900/50 border border-slate-600 hover:border-red-400 transition-all shadow-sm" title="로그아웃"><i class="fa-solid fa-power-off text-lg"></i></button>
             </div>
         </div>
     </header>
 
     <main class="hidden flex-1 overflow-hidden relative" id="main-container">
-        <!-- 배경 장식 요소 -->
-        <div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-[#002B5C]/5 to-transparent pointer-events-none"></div>
-
         <!-- DASHBOARD -->
         <div id="page-dashboard" class="h-full overflow-y-auto p-4 md:p-6 lg:p-8 fade-in max-w-[1600px] mx-auto relative z-10">
             <!-- 필터 바 -->
-            <div class="mb-6 flex flex-wrap gap-3 items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <span class="text-sm font-bold text-slate-700 px-2 flex items-center gap-2"><i class="fa-solid fa-sliders text-[#002B5C]"></i> 데이터 필터</span>
-                <div class="hidden sm:block h-6 w-px bg-slate-200 mx-1"></div>
-                <select id="dash-filter-type" class="bg-blue-50 border border-blue-200 text-[#002B5C] rounded-xl px-4 py-2 text-sm font-bold hover:border-[#002B5C] focus:ring-2 focus:ring-blue-100 outline-none transition-all cursor-pointer" onchange="handleFilterChange('dash')">
+            <div class="mb-6 flex flex-wrap gap-3 items-center hud-card p-4">
+                <span class="text-sm font-black text-cyan-300 px-2 flex items-center gap-2 font-kor tracking-tight"><i class="fa-solid fa-sliders"></i> 데이터 필터</span>
+                <div class="hidden sm:block h-6 w-px bg-slate-600 mx-1"></div>
+                <select id="dash-filter-type" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('dash')">
                     <option value="all">전체 검증</option>
                     <option value="사전기량검증">사전기량검증</option>
                     <option value="본기량검증">본기량검증</option>
                 </select>
-                <select id="dash-filter-date" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 날짜</option></select>
-                <select id="dash-filter-country" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 국가</option></select>
-                <select id="dash-filter-agency" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:ring-2 focus:ring-slate-100 outline-none transition-all cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 업체</option></select>
+                <select id="dash-filter-date" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 날짜</option></select>
+                <select id="dash-filter-country" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 국가</option></select>
+                <select id="dash-filter-agency" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('dash')"><option value="all">전체 업체</option></select>
             </div>
 
             <!-- 현황 요약 카드 (3 Columns) -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
                 
                 <!-- 1. 한국어 평가 종합 -->
-                <div class="dx-card p-5 border-t-4 border-t-blue-500 relative overflow-hidden flex flex-col h-full bg-white">
-                    <div class="absolute -right-8 -top-8 w-32 h-32 bg-blue-50 rounded-full opacity-50"></div>
+                <div class="hud-card p-5 relative overflow-hidden flex flex-col h-full border-t-2 border-t-cyan-400">
                     <div class="relative z-10 flex flex-col h-full">
                         <div class="flex justify-between items-start mb-2">
                             <div>
-                                <h3 class="text-blue-600 text-[10px] font-black uppercase tracking-widest mb-1">Korean Assessment</h3>
-                                <h2 class="text-lg font-black text-slate-800 tracking-tight">한국어 평가 종합</h2>
+                                <p class="font-eng text-[10px] text-cyan-400 font-bold tracking-[0.2em] mb-1">Korean Assessment</p>
+                                <h2 class="text-lg font-black text-white tracking-tight">한국어 평가 종합</h2>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 flex items-center justify-center shadow-inner border border-blue-100 shrink-0"><i class="fa-solid fa-language text-xl"></i></div>
+                            <div class="w-10 h-10 rounded-sm bg-slate-800 text-cyan-300 flex items-center justify-center border border-cyan-600 shrink-0"><i class="fa-solid fa-language text-xl"></i></div>
                         </div>
                         <div class="flex-1 flex flex-col justify-end mt-4">
                             <div class="flex justify-between items-end mb-4">
-                                <div>
-                                    <p class="text-xs text-slate-500 font-bold mb-1">평가 완료</p>
-                                    <p class="text-2xl font-black text-blue-600 font-mono leading-none"><span id="dash-k-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-k-total">0</span>명</span></p>
+                                <div onclick="setSubFilter('k-comp')" class="cursor-pointer group p-1 -m-1 rounded-sm hover:bg-slate-800 transition-colors">
+                                    <p class="text-xs text-slate-300 font-bold mb-1 group-hover:text-cyan-300 transition-colors">평가 완료 <i class="fa-solid fa-magnifying-glass text-[10px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-[clamp(20px,3vw,28px)] font-black text-cyan-300 leading-none"><span id="dash-k-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-k-total">0</span>명</span></p>
                                 </div>
-                                <div class="w-16 h-16 shrink-0 drop-shadow-sm"><canvas id="chartKorean"></canvas></div>
+                                <div class="w-16 h-16 shrink-0"><canvas id="chartKorean"></canvas></div>
                             </div>
-                            <div class="flex justify-between items-center bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
-                                <div class="flex-1 text-center">
-                                    <p class="text-[10px] text-slate-500 font-bold mb-1">순수 합격</p>
-                                    <p class="text-xl font-black text-[#002B5C] font-mono leading-none mb-0.5"><span id="dash-k-pass-pure">0</span><span class="text-xs font-bold text-slate-400 ml-0.5">명</span></p>
-                                    <p class="text-[10px] font-bold text-blue-600 bg-blue-100/50 inline-block px-1.5 py-0.5 rounded"><span id="dash-k-rate-pure">0</span>%</p>
+                            <div class="flex justify-between items-center bg-slate-900/90 p-2.5 rounded-sm border border-slate-700 shadow-inner">
+                                <div onclick="setSubFilter('k-pass-pure')" class="flex-1 text-center cursor-pointer group p-1 rounded-sm hover:bg-slate-800 transition-all border border-transparent hover:border-cyan-800">
+                                    <p class="text-[10px] text-slate-300 font-bold mb-1 group-hover:text-cyan-200 transition-colors">순수 합격 <i class="fa-solid fa-magnifying-glass text-[9px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-xl font-black text-white leading-none mb-0.5"><span id="dash-k-pass-pure">0</span><span class="font-kor text-[10px] font-bold text-slate-400 ml-0.5">명</span></p>
+                                    <p class="font-tech text-[10px] font-bold text-cyan-300 bg-cyan-950 border border-cyan-700 inline-block px-1.5 py-0.5 rounded-sm"><span id="dash-k-rate-pure">0</span>%</p>
                                 </div>
-                                <div class="w-px h-10 bg-blue-200 mx-1"></div>
-                                <div class="flex-1 text-center">
-                                    <p class="text-[10px] text-slate-500 font-bold mb-1">조건부 포함</p>
-                                    <p class="text-xl font-black text-blue-500 font-mono leading-none mb-0.5"><span id="dash-k-pass-cond">0</span><span class="text-xs font-bold text-slate-400 ml-0.5">명</span></p>
-                                    <p class="text-[10px] font-bold text-blue-600 bg-blue-100/50 inline-block px-1.5 py-0.5 rounded"><span id="dash-k-rate-cond">0</span>%</p>
+                                <div class="w-[1px] h-10 bg-slate-600 mx-1"></div>
+                                <div onclick="setSubFilter('k-pass-cond')" class="flex-1 text-center cursor-pointer group p-1 rounded-sm hover:bg-slate-800 transition-all border border-transparent hover:border-yellow-800">
+                                    <p class="text-[10px] text-slate-300 font-bold mb-1 group-hover:text-yellow-300 transition-colors">조건부 포함 <i class="fa-solid fa-magnifying-glass text-[9px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-xl font-black text-yellow-400 leading-none mb-0.5"><span id="dash-k-pass-cond">0</span><span class="font-kor text-[10px] font-bold text-slate-400 ml-0.5">명</span></p>
+                                    <p class="font-tech text-[10px] font-bold text-yellow-400 bg-yellow-950 border border-yellow-700 inline-block px-1.5 py-0.5 rounded-sm"><span id="dash-k-rate-cond">0</span>%</p>
                                 </div>
                             </div>
                         </div>
@@ -288,29 +350,28 @@
                 </div>
 
                 <!-- 2. 기량 평가 종합 -->
-                <div class="dx-card p-5 border-t-4 border-t-orange-500 relative overflow-hidden flex flex-col h-full bg-white">
-                    <div class="absolute -right-8 -top-8 w-32 h-32 bg-orange-50 rounded-full opacity-50"></div>
+                <div class="hud-card p-5 relative overflow-hidden flex flex-col h-full border-t-2 border-t-purple-400">
                     <div class="relative z-10 flex flex-col h-full">
                         <div class="flex justify-between items-start mb-2">
                             <div>
-                                <h3 class="text-orange-600 text-[10px] font-black uppercase tracking-widest mb-1">Skill Verification</h3>
-                                <h2 class="text-lg font-black text-slate-800 tracking-tight">기량 평가 종합</h2>
+                                <p class="font-eng text-[10px] text-purple-400 font-bold tracking-[0.2em] mb-1">Skill Verification</p>
+                                <h2 class="text-lg font-black text-white tracking-tight">기량 평가 종합</h2>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 text-orange-600 flex items-center justify-center shadow-inner border border-orange-100 shrink-0"><i class="fa-solid fa-hammer text-xl"></i></div>
+                            <div class="w-10 h-10 rounded-sm bg-slate-800 text-purple-300 flex items-center justify-center border border-purple-600 shrink-0"><i class="fa-solid fa-hammer text-xl"></i></div>
                         </div>
                         <div class="flex-1 flex flex-col justify-end mt-4">
                             <div class="flex justify-between items-end mb-4">
-                                <div>
-                                    <p class="text-xs text-slate-500 font-bold mb-1">평가 완료</p>
-                                    <p class="text-2xl font-black text-orange-600 font-mono leading-none"><span id="dash-s-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-s-total">0</span>명</span></p>
+                                <div onclick="setSubFilter('s-comp')" class="cursor-pointer group p-1 -m-1 rounded-sm hover:bg-slate-800 transition-colors">
+                                    <p class="text-xs text-slate-300 font-bold mb-1 group-hover:text-purple-300 transition-colors">평가 완료 <i class="fa-solid fa-magnifying-glass text-[10px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-[clamp(20px,3vw,28px)] font-black text-purple-400 leading-none"><span id="dash-s-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-s-total">0</span>명</span></p>
                                 </div>
-                                <div class="w-16 h-16 shrink-0 drop-shadow-sm"><canvas id="chartSkill"></canvas></div>
+                                <div class="w-16 h-16 shrink-0"><canvas id="chartSkill"></canvas></div>
                             </div>
-                            <div class="flex justify-center items-center bg-orange-50/50 p-2.5 rounded-xl border border-orange-100">
-                                <div class="flex-1 text-center">
-                                    <p class="text-[10px] text-slate-500 font-bold mb-1">실기 통과 (조건부 없음)</p>
-                                    <p class="text-xl font-black text-orange-600 font-mono leading-none mb-0.5"><span id="dash-s-pass">0</span><span class="text-xs font-bold text-slate-400 ml-0.5">명</span></p>
-                                    <p class="text-[10px] font-bold text-orange-600 bg-orange-100/50 inline-block px-1.5 py-0.5 rounded"><span id="dash-s-rate">0</span>%</p>
+                            <div class="flex justify-center items-center bg-slate-900/90 p-2.5 rounded-sm border border-slate-700 shadow-inner">
+                                <div onclick="setSubFilter('s-pass')" class="flex-1 text-center cursor-pointer group p-1 rounded-sm hover:bg-slate-800 transition-all border border-transparent hover:border-purple-800">
+                                    <p class="text-[10px] text-slate-300 font-bold mb-1 group-hover:text-purple-200 transition-colors">실기 통과 (조건부 없음) <i class="fa-solid fa-magnifying-glass text-[9px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-xl font-black text-white leading-none mb-0.5"><span id="dash-s-pass">0</span><span class="font-kor text-[10px] font-bold text-slate-400 ml-0.5">명</span></p>
+                                    <p class="font-tech text-[10px] font-bold text-purple-300 bg-purple-950 border border-purple-700 inline-block px-1.5 py-0.5 rounded-sm"><span id="dash-s-rate">0</span>%</p>
                                 </div>
                             </div>
                         </div>
@@ -318,35 +379,34 @@
                 </div>
 
                 <!-- 3. 통합 최종 결과 -->
-                <div class="dx-card p-5 border-t-4 border-t-[#008C46] relative overflow-hidden flex flex-col h-full bg-white md:col-span-2 lg:col-span-1">
-                    <div class="absolute -right-8 -top-8 w-32 h-32 bg-green-50 rounded-full opacity-50"></div>
+                <div class="hud-card p-5 relative overflow-hidden flex flex-col h-full border-t-2 border-t-emerald-400 md:col-span-2 lg:col-span-1">
                     <div class="relative z-10 flex flex-col h-full">
                         <div class="flex justify-between items-start mb-2">
                             <div>
-                                <h3 class="text-[#008C46] text-[10px] font-black uppercase tracking-widest mb-1">Final Result</h3>
-                                <h2 class="text-lg font-black text-slate-800 tracking-tight">통합 최종 결과</h2>
+                                <p class="font-eng text-[10px] text-emerald-400 font-bold tracking-[0.2em] mb-1">Final Result</p>
+                                <h2 class="text-lg font-black text-white tracking-tight">통합 최종 결과</h2>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 text-[#008C46] flex items-center justify-center shadow-inner border border-green-100 shrink-0"><i class="fa-solid fa-clipboard-check text-xl"></i></div>
+                            <div class="w-10 h-10 rounded-sm bg-slate-800 text-emerald-300 flex items-center justify-center border border-emerald-600 shrink-0"><i class="fa-solid fa-clipboard-check text-xl"></i></div>
                         </div>
                         <div class="flex-1 flex flex-col justify-end mt-4">
                             <div class="flex justify-between items-end mb-4">
-                                <div>
-                                    <p class="text-xs text-slate-500 font-bold mb-1">최종 판정 완료</p>
-                                    <p class="text-2xl font-black text-[#008C46] font-mono leading-none"><span id="dash-t-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-t-total">0</span>명</span></p>
+                                <div onclick="setSubFilter('t-comp')" class="cursor-pointer group p-1 -m-1 rounded-sm hover:bg-slate-800 transition-colors">
+                                    <p class="text-xs text-slate-300 font-bold mb-1 group-hover:text-emerald-300 transition-colors">최종 판정 완료 <i class="fa-solid fa-magnifying-glass text-[10px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-[clamp(20px,3vw,28px)] font-black text-emerald-400 leading-none"><span id="dash-t-comp">0</span><span class="text-xs font-bold text-slate-400 ml-1">/ <span id="dash-t-total">0</span>명</span></p>
                                 </div>
-                                <div class="w-16 h-16 shrink-0 drop-shadow-sm"><canvas id="chartTotal"></canvas></div>
+                                <div class="w-16 h-16 shrink-0"><canvas id="chartTotal"></canvas></div>
                             </div>
-                            <div class="flex justify-between items-center bg-green-50/50 p-2.5 rounded-xl border border-green-100">
-                                <div class="flex-1 text-center">
-                                    <p class="text-[10px] text-slate-500 font-bold mb-1">순수 합격</p>
-                                    <p class="text-xl font-black text-[#008C46] font-mono leading-none mb-0.5"><span id="dash-t-pass-pure">0</span><span class="text-xs font-bold text-slate-400 ml-0.5">명</span></p>
-                                    <p class="text-[10px] font-bold text-green-700 bg-green-100/50 inline-block px-1.5 py-0.5 rounded"><span id="dash-t-rate-pure">0</span>%</p>
+                            <div class="flex justify-between items-center bg-slate-900/90 p-2.5 rounded-sm border border-slate-700 shadow-inner">
+                                <div onclick="setSubFilter('t-pass-pure')" class="flex-1 text-center cursor-pointer group p-1 rounded-sm hover:bg-slate-800 transition-all border border-transparent hover:border-emerald-800">
+                                    <p class="text-[10px] text-slate-300 font-bold mb-1 group-hover:text-emerald-200 transition-colors">순수 합격 <i class="fa-solid fa-magnifying-glass text-[9px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-xl font-black text-white leading-none mb-0.5"><span id="dash-t-pass-pure">0</span><span class="font-kor text-[10px] font-bold text-slate-400 ml-0.5">명</span></p>
+                                    <p class="font-tech text-[10px] font-bold text-emerald-300 bg-emerald-950 border border-emerald-700 inline-block px-1.5 py-0.5 rounded-sm"><span id="dash-t-rate-pure">0</span>%</p>
                                 </div>
-                                <div class="w-px h-10 bg-green-200 mx-1"></div>
-                                <div class="flex-1 text-center">
-                                    <p class="text-[10px] text-slate-500 font-bold mb-1">조건부 포함</p>
-                                    <p class="text-xl font-black text-green-500 font-mono leading-none mb-0.5"><span id="dash-t-pass-cond">0</span><span class="text-xs font-bold text-slate-400 ml-0.5">명</span></p>
-                                    <p class="text-[10px] font-bold text-green-700 bg-green-100/50 inline-block px-1.5 py-0.5 rounded"><span id="dash-t-rate-cond">0</span>%</p>
+                                <div class="w-[1px] h-10 bg-slate-600 mx-1"></div>
+                                <div onclick="setSubFilter('t-pass-cond')" class="flex-1 text-center cursor-pointer group p-1 rounded-sm hover:bg-slate-800 transition-all border border-transparent hover:border-yellow-800">
+                                    <p class="text-[10px] text-slate-300 font-bold mb-1 group-hover:text-yellow-400 transition-colors">조건부 포함 <i class="fa-solid fa-magnifying-glass text-[9px] opacity-0 group-hover:opacity-100 ml-0.5"></i></p>
+                                    <p class="font-tech text-xl font-black text-yellow-400 leading-none mb-0.5"><span id="dash-t-pass-cond">0</span><span class="font-kor text-[10px] font-bold text-slate-400 ml-0.5">명</span></p>
+                                    <p class="font-tech text-[10px] font-bold text-yellow-400 bg-yellow-950 border border-yellow-700 inline-block px-1.5 py-0.5 rounded-sm"><span id="dash-t-rate-cond">0</span>%</p>
                                 </div>
                             </div>
                         </div>
@@ -356,74 +416,82 @@
             </div>
 
             <!-- 데이터 테이블 -->
-            <div class="dx-card flex flex-col h-[calc(100vh-430px)] min-h-[400px]">
-                <div class="p-4 md:p-5 border-b border-slate-200 flex justify-between items-center bg-white/80 backdrop-blur-md rounded-t-2xl sticky top-0 z-20">
-                    <h3 class="font-bold text-slate-800 flex items-center gap-2 text-lg tracking-tight"><i class="fa-solid fa-bolt text-[#008C46]"></i> 실시간 통합 평가 현황</h3>
-                    <div class="flex gap-2">
-                        <span class="flex h-3 w-3 relative mt-1.5 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
-                        <span class="text-xs bg-slate-100 border border-slate-200 px-2 py-1 rounded-md text-slate-500 font-bold">LIVE UPDATE</span>
+            <div class="hud-card flex flex-col h-[calc(100vh-430px)] min-h-[400px]">
+                <div class="p-4 md:p-5 border-b border-slate-700 flex flex-wrap justify-between items-center gap-3 bg-slate-900/95 sticky top-0 z-20">
+                    <div class="flex items-center gap-3">
+                        <h3 class="font-bold text-white flex items-center gap-2 text-lg tracking-tight">
+                            <i class="fa-solid fa-bolt text-cyan-400"></i> 실시간 통합 평가 현황
+                            <span id="dash-filtered-count" class="font-tech ml-1 text-[13px] font-bold text-cyan-300 bg-slate-800 px-2 py-0.5 rounded-sm border border-slate-600 transition-colors shadow-sm">0명</span>
+                        </h3>
+                        <div id="active-filter-badge" class="hidden text-[11px] bg-cyan-900/60 text-cyan-200 border border-cyan-500 px-2.5 py-1 rounded-sm font-bold flex items-center gap-1.5 cursor-pointer hover:bg-cyan-800 transition-colors shadow-sm" onclick="setSubFilter(null)" title="필터 해제">
+                            <i class="fa-solid fa-filter"></i> <span id="active-filter-text" class="font-kor tracking-wide text-[12px]"></span> <i class="fa-solid fa-xmark ml-0.5 opacity-80"></i>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="flex h-3 w-3 relative mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500 shadow-[0_0_8px_#22d3ee]"></span></span>
+                        <span class="font-eng tracking-widest text-xs bg-slate-800 border border-slate-600 px-2 py-1 rounded-sm text-cyan-300 font-bold shadow-inner">LIVE UPDATE</span>
                     </div>
                 </div>
-                <div class="flex-1 overflow-auto dx-table-wrapper border-0 rounded-none bg-white">
-                    <table class="w-full text-left border-collapse dx-table min-w-[800px]">
-                        <thead class="sticky top-0 z-10 backdrop-blur-md bg-slate-50/90 shadow-sm">
+                <div class="flex-1 overflow-auto dx-table-wrapper border-0 rounded-none bg-transparent">
+                    <table class="w-full text-left border-collapse dx-table min-w-[800px] whitespace-nowrap">
+                        <thead class="sticky top-0 z-10 backdrop-blur-md">
                             <tr>
-                                <th class="whitespace-nowrap w-24 text-center">검증 구분</th>
-                                <th class="sortable whitespace-nowrap" onclick="handleSort('dash', 'app_no')">수험번호 <i class="fa-solid fa-sort"></i></th>
-                                <th class="sortable whitespace-nowrap" onclick="handleSort('dash', 'name')">성명 <i class="fa-solid fa-sort"></i></th>
-                                <th class="sortable whitespace-nowrap" onclick="handleSort('dash', 'job')">직종 <i class="fa-solid fa-sort"></i></th>
-                                <th class="sortable whitespace-nowrap text-center" onclick="handleSort('dash', 'age')">나이(E9) <i class="fa-solid fa-sort"></i></th>
-                                <th class="text-center sortable whitespace-nowrap" onclick="handleSort('dash', 'k_score')">한국어 평가 <i class="fa-solid fa-sort"></i></th>
-                                <th class="text-center whitespace-nowrap">현장 기량</th>
-                                <th class="text-center sortable whitespace-nowrap" onclick="handleSort('dash', 'result')">최종 결과 <i class="fa-solid fa-sort"></i></th>
+                                <th class="text-center">검증 구분</th>
+                                <th class="sortable" onclick="handleSort('dash', 'app_no')">수험번호 <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" onclick="handleSort('dash', 'name')">성명 <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" onclick="handleSort('dash', 'job')">직종 <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable text-center" onclick="handleSort('dash', 'age')">나이(E9) <i class="fa-solid fa-sort"></i></th>
+                                <th class="text-center sortable" onclick="handleSort('dash', 'k_score')">한국어 <i class="fa-solid fa-sort"></i></th>
+                                <th class="text-center">현장 기량</th>
+                                <th class="text-center sortable" onclick="handleSort('dash', 'result')">최종 결과 <i class="fa-solid fa-sort"></i></th>
                             </tr>
                         </thead>
-                        <tbody id="recent-table-body" class="divide-y divide-slate-100 font-medium"><tr><td colspan="8" class="p-10 text-center text-slate-400">데이터가 없습니다.</td></tr></tbody>
+                        <tbody id="recent-table-body" class="divide-y divide-slate-700/50 font-medium"><tr><td colspan="8" class="p-10 text-center text-slate-400 font-kor font-bold text-sm">데이터가 없습니다.</td></tr></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
         <!-- EVALUATION (평가하기) -->
-        <div id="page-evaluation" class="hidden h-full flex flex-col fade-in bg-[#f4f7f9]">
-            <!-- 상단 컨트롤 & 인포 바 (최적화) -->
-            <div class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex flex-wrap gap-3 items-center shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] shrink-0 z-30 relative">
+        <div id="page-evaluation" class="hidden h-full flex flex-col fade-in">
+            <!-- 상단 컨트롤 & 인포 바 -->
+            <div class="hud-card !border-x-0 !border-t-0 !rounded-none px-4 md:px-6 py-3 flex flex-wrap gap-3 items-center shrink-0 z-30 relative shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                 
-                <!-- 필터 영역 (최적화) -->
+                <!-- 필터 영역 -->
                 <div class="flex gap-2 shrink-0">
-                    <select id="eval-filter-type" class="bg-blue-50 border border-blue-200 text-[#002B5C] rounded-lg px-2 py-1.5 text-xs font-bold hover:border-[#002B5C] outline-none transition-all cursor-pointer" onchange="handleFilterChange('eval')">
+                    <select id="eval-filter-type" class="hud-input !py-1.5 !text-xs font-bold cursor-pointer w-auto" onchange="handleFilterChange('eval')">
                         <option value="all">검증 전체</option><option value="사전기량검증">사전기량</option><option value="본기량검증">본기량</option>
                     </select>
-                    <select id="eval-filter-date" class="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-300 outline-none cursor-pointer" onchange="handleFilterChange('eval')"><option value="all">전체 날짜</option></select>
-                    <select id="eval-filter-country" class="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-300 outline-none cursor-pointer" onchange="handleFilterChange('eval')"><option value="all">전체 국가</option></select>
-                    <select id="eval-filter-agency" class="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-300 outline-none cursor-pointer" onchange="handleFilterChange('eval')"><option value="all">전체 업체</option></select>
+                    <select id="eval-filter-date" class="hud-input !py-1.5 !text-xs font-bold cursor-pointer w-auto" onchange="handleFilterChange('eval')"><option value="all">전체 날짜</option></select>
+                    <select id="eval-filter-country" class="hud-input !py-1.5 !text-xs font-bold cursor-pointer w-auto" onchange="handleFilterChange('eval')"><option value="all">전체 국가</option></select>
+                    <select id="eval-filter-agency" class="hud-input !py-1.5 !text-xs font-bold cursor-pointer w-auto" onchange="handleFilterChange('eval')"><option value="all">전체 업체</option></select>
                 </div>
                 
-                <div class="w-px h-6 bg-slate-200 hidden lg:block"></div>
+                <div class="w-px h-6 bg-slate-600 hidden lg:block mx-1"></div>
 
                 <!-- 대상자 선택 -->
                 <div class="relative w-full sm:w-56 shrink-0">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fa-solid fa-user-magnifying-glass text-[#002B5C]/50 text-sm"></i></div>
-                    <select id="candidate-select" class="w-full pl-9 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 text-sm focus:border-[#002B5C] focus:ring-2 focus:ring-blue-50 outline-none cursor-pointer hover:bg-blue-50/30 transition-all appearance-none shadow-sm"></select>
-                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i></div>
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fa-solid fa-user-magnifying-glass text-cyan-400/70 text-sm"></i></div>
+                    <select id="candidate-select" class="hud-input w-full pl-9 pr-8 !py-1.5 font-black text-sm text-cyan-100 cursor-pointer appearance-none bg-slate-800 border-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.1)]"></select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><i class="fa-solid fa-chevron-down text-cyan-300 text-xs"></i></div>
                 </div>
 
                 <!-- 정보 패널 -->
-                <div class="flex-1 flex items-center gap-3 overflow-x-auto hide-scrollbar whitespace-nowrap bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs">
-                    <div class="flex items-center gap-1.5"><span class="text-slate-400 font-bold">이름</span><span id="info-name" class="font-bold text-slate-800">-</span></div>
-                    <div class="w-px h-3 bg-slate-300"></div>
-                    <div class="flex items-center gap-1.5"><span class="text-slate-400 font-bold">나이</span><span id="info-age" class="font-bold text-slate-600 font-mono">-</span></div>
-                    <div class="w-px h-3 bg-slate-300"></div>
-                    <div class="flex items-center gap-1.5"><span class="text-slate-400 font-bold">E-9</span><span id="info-e9" class="font-bold text-slate-600">-</span></div>
-                    <div class="w-px h-3 bg-slate-300"></div>
-                    <div class="flex items-center gap-1.5"><span class="text-slate-400 font-bold">직종</span><span id="info-job" class="font-black text-[#008C46]">-</span></div>
-                    <div class="w-px h-3 bg-slate-300"></div>
+                <div class="flex-1 flex items-center gap-3 overflow-x-auto hide-scrollbar whitespace-nowrap bg-slate-800/80 border border-slate-600 rounded-sm px-3 py-1.5 text-xs shadow-inner">
+                    <div class="flex items-center gap-1.5"><span class="text-slate-300 font-bold text-[11px]">이름</span><span id="info-name" class="font-black text-white text-sm">-</span></div>
+                    <div class="w-px h-3 bg-slate-600"></div>
+                    <div class="flex items-center gap-1.5"><span class="text-slate-300 font-bold text-[11px]">나이</span><span id="info-age" class="font-bold text-cyan-300 font-tech text-sm">-</span></div>
+                    <div class="w-px h-3 bg-slate-600"></div>
+                    <div class="flex items-center gap-1.5"><span class="text-slate-300 font-bold text-[11px]">E-9</span><span id="info-e9" class="font-bold text-cyan-300 font-tech text-sm">-</span></div>
+                    <div class="w-px h-3 bg-slate-600"></div>
+                    <div class="flex items-center gap-1.5"><span class="text-slate-300 font-bold text-[11px]">직종</span><span id="info-job" class="font-black text-cyan-400 text-sm">-</span></div>
+                    <div class="w-px h-3 bg-slate-600"></div>
                     <span id="info-type" class="font-bold">-</span>
                 </div>
 
                 <!-- 오프라인 업로드 버튼 -->
                 <div class="shrink-0">
-                    <label id="btn-interviewer-upload" for="file-upload-int" class="hidden cursor-pointer px-3 py-1.5 bg-[#002B5C] text-white rounded-lg font-bold hover:bg-[#001f42] transition-colors items-center justify-center gap-1.5 text-xs shadow-sm">
+                    <label id="btn-interviewer-upload" for="file-upload-int" class="hidden cursor-pointer px-3 py-1.5 bg-cyan-800 border border-cyan-400 text-white rounded-sm font-bold hover:bg-cyan-700 transition-colors items-center justify-center gap-1.5 text-xs shadow-[0_0_10px_rgba(34,211,238,0.2)] font-kor tracking-wide">
                         <i class="fa-solid fa-upload"></i> <span class="hidden sm:inline">결과 업로드</span>
                     </label>
                     <input type="file" id="file-upload-int" class="hidden" accept=".xlsx,.xls" onchange="uploadExcel(this)">
@@ -433,61 +501,60 @@
             <!-- 메인 패널 영역 -->
             <div class="flex-1 overflow-hidden flex flex-col md:flex-row gap-4 p-3 md:p-5 max-w-[1800px] mx-auto w-full">
                 
-                <!-- 왼쪽: 질문지 패널 (여백 축소) -->
-                <div id="eval-left-panel" class="w-full md:w-5/12 h-1/3 md:h-full bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative transition-all duration-300 overflow-hidden">
-                    <div class="p-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 z-10">
-                        <span class="font-black text-[#002B5C] text-sm flex items-center gap-1.5"><i class="fa-solid fa-clipboard-question text-blue-500"></i> 인터뷰 스크립트</span>
+                <!-- 왼쪽: 질문지 패널 -->
+                <div id="eval-left-panel" class="hud-card w-full md:w-5/12 h-1/3 md:h-full flex flex-col relative overflow-hidden shadow-lg">
+                    <div class="p-3 border-b border-slate-700 bg-slate-900/95 flex justify-between items-center sticky top-0 z-10">
+                        <span class="font-kor font-black text-cyan-300 text-sm flex items-center gap-1.5"><i class="fa-solid fa-clipboard-question text-cyan-400 text-base"></i> 인터뷰 스크립트</span>
                         <div class="flex items-center gap-1.5">
-                            <!-- 셔플 버튼 위치 변경 및 축소 -->
-                            <button id="btn-shuffle" onclick="manualShuffle()" class="bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-600 px-2 py-1 rounded text-xs font-bold transition-all flex items-center gap-1 shadow-sm" title="질문 세트 랜덤 변경">
+                            <button id="btn-shuffle" onclick="manualShuffle()" class="bg-slate-800 border border-slate-500 hover:bg-cyan-900 hover:text-white hover:border-cyan-400 text-slate-300 px-2 py-1 rounded-sm text-xs font-bold transition-all flex items-center gap-1 shadow-md font-kor tracking-wide" title="질문 세트 랜덤 변경">
                                 <i class="fa-solid fa-shuffle"></i> <span class="hidden xl:inline">문항 셔플</span>
                             </button>
-                            <div class="flex items-center gap-1.5 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm ml-1">
-                                <span id="q-page-num" class="px-1 text-[11px] font-bold text-slate-600 font-mono tracking-wide">1 / 3 (SET 1)</span>
-                                <button onclick="changeQPage()" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-5 h-5 rounded flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                            <div class="flex items-center gap-1.5 bg-slate-800 px-1.5 py-0.5 rounded-sm border border-slate-500 shadow-inner ml-1">
+                                <span id="q-page-num" class="px-1 text-[11px] font-bold text-cyan-200 font-tech tracking-wider">1 / 3 (SET 1)</span>
+                                <button onclick="changeQPage()" class="hover:bg-cyan-800 text-cyan-300 w-5 h-5 rounded-sm flex items-center justify-center transition-colors"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
                             </div>
                         </div>
                     </div>
-                    <div id="question-container" class="flex-1 overflow-y-auto p-3 space-y-2.5 bg-slate-50/30"></div>
+                    <div id="question-container" class="flex-1 overflow-y-auto p-3 space-y-2.5 bg-transparent"></div>
                 </div>
                 
                 <!-- 오른쪽: 평가 입력 패널 -->
-                <div id="eval-right-panel" class="w-full md:w-7/12 h-2/3 md:h-full bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative transition-all duration-300 overflow-hidden">
+                <div id="eval-right-panel" class="hud-card w-full md:w-7/12 h-2/3 md:h-full flex flex-col relative overflow-hidden shadow-lg">
                     <!-- 탭 -->
-                    <div class="flex border-b border-slate-100 bg-slate-50/50 p-1.5 gap-1.5">
-                        <button onclick="setTab('korean')" id="tab-korean" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-[#002B5C] shadow-md transition-all flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-language"></i> 한국어 평가
+                    <div id="eval-tabs-container" class="flex border-b border-slate-700 bg-slate-900/90 p-1.5 gap-1.5">
+                        <button onclick="setTab('korean')" id="tab-korean" class="flex-1 py-2.5 rounded-sm text-sm font-black text-white bg-cyan-800 border border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all flex items-center justify-center gap-2 font-kor tracking-wide">
+                            <i class="fa-solid fa-language text-base"></i> 한국어 평가
                         </button>
-                        <button onclick="setTab('skill')" id="tab-skill" class="flex-1 py-2.5 rounded-lg text-sm font-bold text-slate-500 bg-transparent hover:bg-slate-200/50 transition-all flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-helmet-safety"></i> 기량 검증
+                        <button onclick="setTab('skill')" id="tab-skill" class="flex-1 py-2.5 rounded-sm text-sm font-bold text-slate-400 bg-transparent border border-transparent hover:bg-slate-800 hover:text-slate-200 transition-all flex items-center justify-center gap-2 font-kor tracking-wide">
+                            <i class="fa-solid fa-helmet-safety text-base"></i> 기량 검증
                         </button>
                     </div>
 
                     <!-- 액션 바 (총점 및 저장) -->
-                    <div class="px-4 py-3 flex justify-between items-center border-b border-slate-100 bg-white z-20">
+                    <div class="px-4 py-3 flex justify-between items-center border-b border-slate-700 bg-slate-900 z-20">
                         <div class="flex items-center gap-2">
-                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Total Score</span>
-                            <div class="bg-blue-50 px-3 py-1 rounded border border-blue-100 flex items-baseline gap-1" id="korean-score-badge">
-                                <span id="korean-total-score-fixed" class="text-xl font-black text-[#002B5C] font-mono">0</span>
-                                <span class="text-xs font-bold text-blue-300">/100</span>
+                            <span class="font-eng text-[11px] font-bold text-cyan-400 uppercase tracking-widest">Total Score</span>
+                            <div class="bg-slate-800 px-3 py-1 rounded-sm border border-slate-500 flex items-baseline gap-1 shadow-inner" id="korean-score-badge">
+                                <span id="korean-total-score-fixed" class="text-xl font-black text-cyan-300 font-tech">0</span>
+                                <span class="text-xs font-bold text-slate-400 font-tech">/100</span>
                             </div>
                         </div>
-                        <button onclick="saveCurrentEval()" id="btn-save" class="bg-[#008C46] text-white py-2 px-6 rounded-lg font-bold text-sm shadow-md shadow-green-600/30 hover:bg-green-700 hover:shadow-green-700/40 transition-all active:scale-[0.97] flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-floppy-disk text-base"></i> <span id="btn-save-text">평가 저장 완료</span>
+                        <button onclick="saveCurrentEval()" id="btn-save" class="hud-btn px-6 py-2 shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+                            <i class="fa-solid fa-floppy-disk text-base mr-1"></i> <span id="btn-save-text" class="font-kor font-black tracking-wide text-sm">평가 저장 완료</span>
                         </button>
                     </div>
 
-                    <!-- 한국어 입력 영역 (여백 축소) -->
-                    <div id="view-korean" class="flex-1 overflow-y-auto p-3 md:p-4 pb-safe bg-slate-50/30">
+                    <!-- 한국어 입력 영역 -->
+                    <div id="view-korean" class="flex-1 overflow-y-auto p-3 md:p-4 pb-safe bg-transparent">
                         <div id="korean-items" class="grid gap-3"></div>
                     </div>
 
                     <!-- 기량 입력 영역 -->
-                    <div id="view-skill" class="hidden flex-1 overflow-y-auto p-4 md:p-6 pb-safe flex flex-col items-center bg-slate-50">
+                    <div id="view-skill" class="hidden flex-1 overflow-y-auto p-4 md:p-6 pb-safe flex flex-col items-center bg-transparent">
                         <div class="w-full max-w-2xl space-y-4" id="skill-forms-container"></div>
                         <div class="w-full max-w-2xl mt-4">
-                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide"><i class="fa-solid fa-pen-to-square mr-1"></i> 종합 의견 및 특이사항</label>
-                            <textarea id="skill-memo" class="dx-input h-24 md:h-32 resize-none text-sm" placeholder="면접관의 상세한 의견을 기록해주세요. (예: 체력이 우수함, 도면 이해도가 부족함 등)"></textarea>
+                            <label class="block text-[10px] font-bold text-cyan-400 mb-1.5 font-kor"><i class="fa-solid fa-pen-to-square mr-1"></i> 종합 의견 및 특이사항</label>
+                            <textarea id="skill-memo" class="hud-input h-24 md:h-32 resize-none text-sm font-bold font-kor" placeholder="면접관의 상세한 의견을 기록해주세요. (예: 체력이 우수함, 도면 이해도가 부족함 등)"></textarea>
                         </div>
                     </div>
                 </div>
@@ -499,62 +566,62 @@
             <div class="grid gap-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- 시스템 설정 -->
-                    <div class="dx-card p-6 lg:col-span-1 border-t-4 border-t-[#008C46]">
-                        <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2 tracking-tight"><i class="fa-brands fa-google text-[#008C46]"></i> 백엔드 시스템 연동</h3>
+                    <div class="hud-card p-6 lg:col-span-1 border-t-2 border-t-cyan-500">
+                        <h3 class="font-kor font-black text-lg text-cyan-300 mb-4 flex items-center gap-2"><i class="fa-brands fa-google text-cyan-400"></i> 백엔드 시스템 연동</h3>
                         <div class="space-y-3">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Apps Script Web App URL</label>
-                            <input type="text" id="gas-url" class="dx-input !py-2.5 !text-sm font-mono" placeholder="URL을 입력하세요">
-                            <button onclick="saveGasUrl()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors shadow-md flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-link"></i> 시스템 연결 저장
+                            <label class="block text-[10px] font-bold text-cyan-400 font-kor">Apps Script Web App URL</label>
+                            <input type="text" id="gas-url" class="hud-input !py-2.5 !text-sm font-tech" placeholder="URL을 입력하세요">
+                            <button onclick="saveGasUrl()" class="hud-btn w-full py-3 text-sm font-black flex items-center justify-center gap-2 font-kor tracking-wide shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                                <i class="fa-solid fa-link text-base"></i> 시스템 연결 저장
                             </button>
                         </div>
-                        <div class="mt-4 p-3 bg-green-50 rounded-xl border border-green-100">
-                            <p class="text-[11px] text-green-800 font-medium leading-relaxed"><i class="fa-solid fa-circle-check mr-1"></i> 올바른 URL을 입력해야 클라우드 데이터베이스(Google Sheets)와 실시간으로 동기화됩니다.</p>
+                        <div class="mt-4 p-3 bg-slate-800/80 rounded-sm border border-cyan-800/50 shadow-inner">
+                            <p class="font-kor text-xs text-cyan-200 font-bold leading-relaxed"><i class="fa-solid fa-circle-check mr-1 text-cyan-400"></i> 올바른 URL을 입력해야 클라우드 데이터베이스와 동기화됩니다.</p>
                         </div>
                     </div>
 
                     <!-- 명단 업로드 -->
-                    <div class="dx-card p-6 lg:col-span-2 border-t-4 border-t-[#002B5C]">
-                        <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2 tracking-tight"><i class="fa-solid fa-cloud-arrow-up text-[#002B5C]"></i> 평가 명단 일괄 구축 (Excel)</h3>
+                    <div class="hud-card p-6 lg:col-span-2 border-t-2 border-t-purple-500">
+                        <h3 class="font-kor font-black text-lg text-purple-300 mb-4 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-purple-400"></i> 평가 명단 일괄 구축 (Excel)</h3>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">검증 단계 (단일 시트)</label>
-                                <div class="flex bg-slate-100 p-1 rounded-xl h-[46px]">
+                                <label class="block text-[10px] font-bold text-purple-400 mb-1.5 font-kor">검증 단계 (단일 시트)</label>
+                                <div class="flex bg-slate-900 p-1 rounded-sm border border-slate-600 h-[46px] shadow-inner">
                                     <label class="flex-1 text-center cursor-pointer h-full">
                                         <input type="radio" name="upload_type" value="사전기량검증" class="peer sr-only" checked>
-                                        <div class="h-full flex items-center justify-center rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-[#002B5C] peer-checked:shadow-sm transition-all">사전기량</div>
+                                        <div class="font-kor h-full flex items-center justify-center rounded-sm text-xs font-bold text-slate-400 peer-checked:bg-purple-900 peer-checked:text-white peer-checked:border peer-checked:border-purple-400 transition-all shadow-sm">사전기량</div>
                                     </label>
                                     <label class="flex-1 text-center cursor-pointer h-full">
                                         <input type="radio" name="upload_type" value="본기량검증" class="peer sr-only">
-                                        <div class="h-full flex items-center justify-center rounded-lg text-xs font-bold text-slate-500 peer-checked:bg-white peer-checked:text-[#002B5C] peer-checked:shadow-sm transition-all">본기량</div>
+                                        <div class="font-kor h-full flex items-center justify-center rounded-sm text-xs font-bold text-slate-400 peer-checked:bg-purple-900 peer-checked:text-white peer-checked:border peer-checked:border-purple-400 transition-all shadow-sm">본기량</div>
                                     </label>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">검증 국가</label>
-                                <input type="text" id="conf-country" class="dx-input !py-2.5 !text-sm h-[46px]" placeholder="예: 베트남">
+                                <label class="block text-[10px] font-bold text-purple-400 mb-1.5 font-kor">검증 국가</label>
+                                <input type="text" id="conf-country" class="hud-input !py-2.5 !text-sm h-[46px]" placeholder="예: 베트남">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">송출 업체명</label>
-                                <input type="text" id="conf-agency" class="dx-input !py-2.5 !text-sm h-[46px]" placeholder="예: 코인파워">
+                                <label class="block text-[10px] font-bold text-purple-400 mb-1.5 font-kor">송출 업체명</label>
+                                <input type="text" id="conf-agency" class="hud-input !py-2.5 !text-sm h-[46px]" placeholder="예: 코인파워">
                             </div>
                         </div>
                         
                         <div class="flex flex-col sm:flex-row gap-3">
-                            <button onclick="saveUploadConfig()" class="bg-slate-100 text-slate-600 border border-slate-300 px-6 py-3 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors flex-1 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-gear"></i> 업로드 환경 저장
+                            <button onclick="saveUploadConfig()" class="bg-slate-800 text-slate-200 border border-slate-500 px-6 py-3 rounded-sm text-sm font-black hover:bg-slate-700 hover:text-white hover:border-slate-400 transition-colors flex-1 flex items-center justify-center gap-2 font-kor tracking-wide shadow-md">
+                                <i class="fa-solid fa-gear text-base"></i> 업로드 환경 저장
                             </button>
-                            <label for="file-upload" class="cursor-pointer bg-[#002B5C] text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-[#001f42] transition-colors shadow-lg flex-1 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-file-excel text-green-400"></i> 명단 데이터 업로드 (.xlsx)
+                            <label for="file-upload" class="hud-btn cursor-pointer px-6 py-3 flex-1 flex items-center justify-center gap-2 border border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                                <i class="fa-solid fa-file-excel text-emerald-400 text-lg"></i> <span class="font-kor font-black tracking-wide text-sm">명단 데이터 업로드 (.xlsx)</span>
                             </label>
                             <input type="file" id="file-upload" class="hidden" accept=".xlsx,.xls" onchange="uploadExcel(this)">
                         </div>
 
-                        <div class="mt-5 p-4 bg-blue-50/50 rounded-xl border border-blue-100 text-xs text-slate-600 font-medium leading-relaxed">
-                            <p class="font-bold text-[#002B5C] mb-2"><i class="fa-solid fa-circle-info mr-1"></i> 데이터 구조 가이드라인</p>
+                        <div class="mt-5 p-4 bg-slate-800/80 rounded-sm border border-slate-700 text-xs text-slate-300 font-bold leading-relaxed font-kor shadow-inner">
+                            <p class="font-black text-purple-300 mb-1.5 font-kor text-sm"><i class="fa-solid fa-circle-info mr-1 text-purple-400"></i> 데이터 구조 가이드라인</p>
                             <ul class="list-disc pl-5 space-y-1">
-                                <li>파일 내 <strong class="text-blue-600">'사전기량검증'</strong>, <strong class="text-blue-600">'본기량검증'</strong>, <strong class="text-blue-600">'log'</strong> 시트가 존재하면 시스템이 자동으로 3개 시트를 동시 파싱합니다.</li>
+                                <li>파일 내 <strong class="text-white bg-slate-900 px-1 rounded border border-slate-600">'사전기량검증'</strong>, <strong class="text-white bg-slate-900 px-1 rounded border border-slate-600">'본기량검증'</strong>, <strong class="text-white bg-slate-900 px-1 rounded border border-slate-600">'log'</strong> 시트가 존재하면 시스템이 자동으로 3개 시트를 동시 파싱합니다.</li>
                                 <li>A열(NO), B열(응시번호), C열(직종), D열(성명), E열(생년월일), F열(E-9) 순서를 반드시 준수해야 합니다.</li>
                             </ul>
                         </div>
@@ -562,27 +629,27 @@
                 </div>
 
                 <!-- 어드민 데이터 테이블 -->
-                <div class="dx-card overflow-hidden flex flex-col h-[500px]">
-                    <div class="bg-white px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4">
-                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2 tracking-tight"><i class="fa-solid fa-users-gear text-[#002B5C]"></i> 통합 데이터베이스 관리</h3>
+                <div class="hud-card overflow-hidden flex flex-col h-[500px] border-t-2 border-t-slate-500">
+                    <div class="bg-slate-900 px-6 py-4 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4 z-20">
+                        <h3 class="font-kor font-black text-white text-lg flex items-center gap-2"><i class="fa-solid fa-users-gear text-cyan-400 text-xl"></i> 통합 데이터베이스 관리</h3>
                         <div class="flex gap-3 items-center">
-                            <span class="bg-slate-100 text-[#002B5C] font-mono px-3 py-1 rounded-lg text-sm font-bold border border-slate-200 shadow-inner" id="admin-count">0명</span>
-                            <button onclick="deleteSelected()" class="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors border border-red-200 flex items-center gap-1.5"><i class="fa-solid fa-trash-can"></i> 선택 데이터 파기</button>
+                            <span class="bg-slate-800 text-cyan-300 font-tech px-3 py-1 rounded-sm text-sm font-bold border border-slate-600 shadow-inner" id="admin-count">0명</span>
+                            <button onclick="deleteSelected()" class="bg-red-900/60 text-red-200 px-4 py-2 rounded-sm text-xs font-black hover:bg-red-800 hover:text-white transition-colors border border-red-500 flex items-center gap-1.5 font-kor tracking-wide shadow-[0_0_8px_rgba(239,68,68,0.2)]"><i class="fa-solid fa-trash-can text-sm"></i> 선택 데이터 파기</button>
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-50 border-b border-slate-200 flex gap-2 overflow-x-auto hide-scrollbar">
-                        <select id="admin-filter-type" class="bg-white border border-slate-300 text-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:border-[#002B5C] focus:ring-1 focus:ring-[#002B5C] outline-none" onchange="handleFilterChange('admin')">
+                    <div class="p-3 bg-slate-900/70 border-b border-slate-700 flex gap-2 overflow-x-auto hide-scrollbar z-10 shadow-md">
+                        <select id="admin-filter-type" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('admin')">
                             <option value="all">검증 전체</option><option value="사전기량검증">사전기량검증</option><option value="본기량검증">본기량검증</option>
                         </select>
-                        <select id="admin-filter-date" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 focus:border-[#002B5C] focus:ring-1 focus:ring-[#002B5C] outline-none" onchange="handleFilterChange('admin')"><option value="all">전체 날짜</option></select>
-                        <select id="admin-filter-country" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 focus:border-[#002B5C] focus:ring-1 focus:ring-[#002B5C] outline-none" onchange="handleFilterChange('admin')"><option value="all">전체 국가</option></select>
-                        <select id="admin-filter-agency" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 focus:border-[#002B5C] focus:ring-1 focus:ring-[#002B5C] outline-none" onchange="handleFilterChange('admin')"><option value="all">전체 업체</option></select>
+                        <select id="admin-filter-date" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('admin')"><option value="all">전체 날짜</option></select>
+                        <select id="admin-filter-country" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('admin')"><option value="all">전체 국가</option></select>
+                        <select id="admin-filter-agency" class="hud-input w-auto !py-1.5 !text-xs font-bold cursor-pointer" onchange="handleFilterChange('admin')"><option value="all">전체 업체</option></select>
                     </div>
-                    <div class="flex-1 overflow-auto bg-white">
-                        <table class="w-full text-left border-collapse dx-table min-w-[800px]">
-                            <thead class="sticky top-0 z-10 backdrop-blur-md bg-white/90 shadow-sm">
+                    <div class="flex-1 overflow-auto bg-transparent dx-table-wrapper border-0 rounded-none relative">
+                        <table class="w-full text-left border-collapse dx-table min-w-[900px] whitespace-nowrap font-kor">
+                            <thead class="sticky top-0 z-10 backdrop-blur-md bg-slate-900/95 shadow-sm border-b border-cyan-500">
                                 <tr>
-                                    <th class="px-4 py-4 text-center w-12"><input type="checkbox" id="check-all" class="w-4 h-4 text-[#002B5C] rounded border-slate-300 focus:ring-[#002B5C]" onchange="toggleCheckAll(this)"></th>
+                                    <th class="px-4 py-4 text-center w-12"><input type="checkbox" id="check-all" class="w-4 h-4 bg-slate-800 border-slate-500 rounded-sm focus:ring-cyan-400 accent-cyan-500" onchange="toggleCheckAll(this)"></th>
                                     <th class="px-4 py-4 text-center">검증 단계</th>
                                     <th class="px-4 py-4 sortable" onclick="handleSort('admin', 'app_no')">식별 ID <i class="fa-solid fa-sort"></i></th>
                                     <th class="px-4 py-4 sortable" onclick="handleSort('admin', 'name')">성명 <i class="fa-solid fa-sort"></i></th>
@@ -591,7 +658,7 @@
                                     <th class="px-4 py-4 text-center sortable" onclick="handleSort('admin', 'result')">최종 판정 <i class="fa-solid fa-sort"></i></th>
                                 </tr>
                             </thead>
-                            <tbody id="admin-table-body" class="font-medium text-slate-600"></tbody>
+                            <tbody id="admin-table-body" class="font-medium text-slate-200"></tbody>
                         </table>
                     </div>
                 </div>
@@ -606,6 +673,7 @@ localStorage.setItem('gasUrl', gasUrl);
 let candidates=[], globalLogs=[], currentId=null, currentTab='korean', evaluatorName="";
 let confCountry=localStorage.getItem('confCountry')||"", confAgency=localStorage.getItem('confAgency')||"";
 let activeQSets=[], currentQPage=0, dashboardSort={col:'id',asc:false}, adminSort={col:'no',asc:true}, userRole='evaluator';
+let activeSubFilter = null; 
 
 document.getElementById('gas-url').value = gasUrl;
 if(confCountry) document.getElementById('conf-country').value=confCountry;
@@ -617,10 +685,9 @@ window.onload=function(){
     else { updateFilters(); renderDashboard(); updateCandidateSelect(); }
 };
 
-// 검증 단계(eval_type)를 엄격하게 정규화하는 헬퍼 함수
 function normalizeType(t) {
     if (!t) return '사전기량검증';
-    const str = String(t).replace(/\s/g, ''); // 모든 공백 제거
+    const str = String(t).replace(/\s/g, ''); 
     if (str.includes('본')) return '본기량검증';
     return '사전기량검증';
 }
@@ -631,7 +698,6 @@ async function fetchData(){
         const data=await res.json();
         candidates = (data.candidates||[]).map((d,i)=>{
             const eType = normalizeType(d.eval_type);
-            // Uid를 생성하여 사전/본 데이터 충돌 방지
             return {...d, id:d.app_no, uid:d.app_no+'_'+eType, eval_type: eType};
         });
         globalLogs = data.logs || [];
@@ -644,27 +710,25 @@ async function fetchData(){
     }
 }
 
-// --- 로그인 / 시스템 로직 ---
 function toggleAdminBox(){
     const box = document.getElementById('admin-input-box');
     const btn = document.getElementById('btn-show-admin');
     if(box.classList.contains('hidden')){
         box.classList.remove('hidden');
-        btn.innerHTML = '<i class="fa-solid fa-xmark"></i> 입력 취소';
+        btn.innerHTML = '<i class="fa-solid fa-xmark text-sm"></i> 입력 취소';
         document.getElementById('admin-pw').focus();
     } else {
         box.classList.add('hidden');
-        btn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> 관리자 모드';
+        btn.innerHTML = '<i class="fa-solid fa-shield-halved text-sm"></i> 관리자 모드';
     }
 }
 
-// 비밀번호 단방향 해시 암호화 함수
 async function hashPassword(pwd) {
     let hash = 0;
     for (let i = 0; i < pwd.length; i++) {
         const char = pwd.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // 32비트 정수로 변환
+        hash = hash & hash; 
     }
     return hash.toString(16);
 }
@@ -673,18 +737,28 @@ async function attemptAdminLogin(){
     const pw = document.getElementById('admin-pw').value.trim();
     const hashedPw = await hashPassword(pw);
     
-    // '1234'의 해시값 비교
     if(hashedPw === '170842'){
         userRole='admin';
         document.getElementById('user-role-label').innerText="SYSTEM ADMIN";
         document.getElementById('user-icon').innerHTML='<i class="fa-solid fa-user-shield"></i>';
-        document.getElementById('user-icon').className="w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center text-lg shadow-lg shrink-0 border-2 border-slate-600";
         
         document.getElementById('app-header').classList.remove('hidden');
         document.getElementById('main-container').classList.remove('hidden');
         
         document.getElementById('main-nav').style.display='flex';
         document.getElementById('nav-admin').classList.remove('hidden'); 
+        
+        document.getElementById('eval-left-panel').classList.remove('hidden');
+        document.getElementById('eval-left-panel').style.display='flex';
+        
+        const rightPanel = document.getElementById('eval-right-panel');
+        rightPanel.classList.remove('hidden', 'w-full');
+        rightPanel.classList.add('w-full', 'md:w-7/12');
+        rightPanel.style.display='flex';
+        
+        document.getElementById('eval-tabs-container').style.display = 'flex';
+        document.getElementById('tab-skill').classList.remove('hidden');
+        
         document.getElementById('login-overlay').style.display='none';
         navTo('admin');
     } else { alert("보안 코드가 일치하지 않습니다.", "error"); }
@@ -704,40 +778,55 @@ async function attemptLogin(){
     const rightPanel=document.getElementById('eval-right-panel');
     const adminNav=document.getElementById('nav-admin');
     
-    // 평가자: '5678'의 해시값 비교
-    if(hashedPw === '18e942'){
+    if(hashedPw === '1ac640'){ // 9999: 한국어 인터뷰 평가자
         userRole='evaluator';
-        document.getElementById('user-role-label').innerText=evaluatorName;
+        document.getElementById('user-role-label').innerText=evaluatorName + " (인터뷰)";
         document.getElementById('user-icon').innerText=evaluatorName.charAt(0);
         
         document.getElementById('app-header').classList.remove('hidden');
         document.getElementById('main-container').classList.remove('hidden');
         
-        nav.style.display='flex';
+        nav.style.display='none'; // 대시보드 네비게이션 숨김
         intUploadBtn.style.display='none';
         adminNav.classList.add('hidden');
-        leftPanel.className="w-full md:w-5/12 h-1/3 md:h-full bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative transition-all duration-300 overflow-hidden";
-        rightPanel.className="w-full md:w-7/12 h-2/3 md:h-full bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative transition-all duration-300 overflow-hidden";
+        
+        // 왼쪽(인터뷰 문항), 오른쪽(평가 폼) 모두 표시
+        leftPanel.classList.remove('hidden'); leftPanel.style.display='flex';
+        rightPanel.classList.remove('hidden', 'w-full'); 
+        rightPanel.classList.add('w-full', 'md:w-7/12');
         rightPanel.style.display='flex';
+        
+        // 기량 검증 탭 완전 숨김
+        document.getElementById('eval-tabs-container').style.display = 'flex';
+        document.getElementById('tab-skill').classList.add('hidden');
+        document.getElementById('tab-korean').classList.remove('hidden');
+        
         overlay.style.display='none';
-        navTo('dashboard');
+        navTo('evaluation'); // 대시보드를 건너뛰고 평가 화면으로 직행
+        setTab('korean');
         updateCandidateSelect(); 
-    // 현장 면접관: '9999'의 해시값 비교
-    } else if(hashedPw === '1ac640'){
+    } else if(hashedPw === '18e942'){ // 5678: 현장 기량 평가자
         userRole='interviewer';
         document.getElementById('user-role-label').innerText=evaluatorName + " (현장)";
         document.getElementById('user-icon').innerHTML='<i class="fa-solid fa-helmet-safety"></i>';
-        document.getElementById('user-icon').className="w-10 h-10 bg-[#008C46] text-white rounded-full flex items-center justify-center text-lg shadow-lg shrink-0 border-2 border-green-500";
         
         document.getElementById('app-header').classList.remove('hidden');
         document.getElementById('main-container').classList.remove('hidden');
         
-        nav.style.display='none';
+        nav.style.display='none'; // 대시보드 네비게이션 숨김
         intUploadBtn.style.display='flex';
-        leftPanel.className="w-full h-full bg-white rounded-xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative transition-all duration-300 overflow-hidden";
-        rightPanel.style.display='none';
+        
+        // 왼쪽(인터뷰 문항) 숨김, 오른쪽(기량 평가) 100% 확장
+        leftPanel.style.display='none';
+        rightPanel.classList.remove('hidden', 'md:w-7/12'); 
+        rightPanel.classList.add('w-full');
+        rightPanel.style.display='flex';
+        
+        document.getElementById('eval-tabs-container').style.display = 'none'; // 탭 바 전체 숨김
+        
         overlay.style.display='none';
         navTo('evaluation');
+        setTab('skill'); 
     } else { alert("인가되지 않은 접근 코드입니다.","error"); }
 }
 
@@ -764,8 +853,21 @@ function enterAdminMode() {
                     userRole = 'admin';
                     document.getElementById('user-role-label').innerText = "SYSTEM ADMIN";
                     document.getElementById('user-icon').innerHTML = '<i class="fa-solid fa-user-shield"></i>';
-                    document.getElementById('user-icon').className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center text-lg shadow-lg shrink-0 border-2 border-slate-600";
+                    
+                    document.getElementById('main-nav').style.display='flex';
                     document.getElementById('nav-admin').classList.remove('hidden');
+                    
+                    document.getElementById('eval-left-panel').classList.remove('hidden');
+                    document.getElementById('eval-left-panel').style.display='flex';
+                    
+                    const rightPanel = document.getElementById('eval-right-panel');
+                    rightPanel.classList.remove('hidden', 'w-full');
+                    rightPanel.classList.add('w-full', 'md:w-7/12');
+                    rightPanel.style.display='flex';
+                    
+                    document.getElementById('eval-tabs-container').style.display = 'flex';
+                    document.getElementById('tab-skill').classList.remove('hidden');
+                    
                     navTo('admin');
                     alert('관리자 모드로 전환되었습니다.', 'success');
                 } else {
@@ -776,17 +878,14 @@ function enterAdminMode() {
     }
 }
 
-// --- 질문 DB
-const QUESTIONS_DB=[["이름이 뭐예요? → 그 이름은 누가 지어줬어요?","나이가 몇 살이에요? → 지금 나이에 제일 하고 싶은 일이 뭐예요?","가족은 몇 명이에요? → 가족 중에서 누가 본인을 제일 많이 도와줘요?","고향은 어디예요? → 고향에서 제일 좋아했던 장소는 어디예요?","본인 성격은 어때요? → 그 성격이 일할 때 어떤 도움이 될까요?","용접 일은 몇 년 정도 했어요? → 일하면서 어떤 용접을 제일 많이 해봤어요?","어떤 용접을 할 줄 알아요? → 그중에서 제일 자신 있는 건 뭐예요?","안전장비는 잘 챙겨서 써요? → 그중에서 뭘 제일 자주 써요?","안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 기억에 남아요?","한국에서 일하고 싶은 마음이 커요? → 한국 오면 뭐가 제일 기대돼요?","[신규] 매운 한국 음식도 잘 먹을 수 있어요? → 음식이 입에 안 맞으면 어떻게 할 거예요?","[신규] 월급 받으면 제일 먼저 뭐 하고 싶어요? → 돈 모아서 고향에 보내줄 거예요?","[신규] 고향 집에서 회사까지는 멀었어요? → 거리가 멀어도 지각 안 하고 다닐 수 있죠?"],["오늘 무슨 요일이에요? → 오늘 꼭 해야 일 있어요?","지금 몇 시예요? → 보통 이 시간엔 뭐 하고 있어요?","어제는 뭐 했어요? → 어제 했던 일 중에 뭐가 제일 기억에 남아요?","내일은 뭐 할 거예요? → 내일 할 일을 위해 오늘 준비해 둔 거 있어요?","좋아하는 음식은 뭐예요? → 그 음식은 누구랑 먹는 걸 좋아해요?","싫어하는 음식도 있어요? → 그 음식은 왜 싫어하게 됐어요?","주말엔 보통 뭐 해요? → 주말에 자주 가는 곳 있어요?","한국 노래나 드라마 본 적 있어요? → 좋아하는 한국 노래나 배우 있어요?","직업이 뭐예요? → 지금 그 직업을 선택한 이유가 있어요?","지각하면 어떻게 할 거예요? → 지각 안 하려고 본인은 어떤 노력을 해요?","[신규] 아침엔 보통 몇 시에 일어나요? → 일어나서 제일 먼저 하는 일이 뭐예요?","[신규] 한국 겨울이 진짜 춥다는 거 알고 있어요? → 날씨가 추워도 밖에서 일할 수 있겠어요?","[신규] 작업복 입고 일하는 거 괜찮아요? → 옷이 더러워지면 직접 빨래할 수 있어요?"],["결혼은 했어요? → 가족들이랑은 자주 연락해요?","한국어 공부한 지는 얼마나 됐어요? → 처음에 어떻게 공부를 시작하게 됐어요?","오늘 기분이 어때요? → 왜 그런 기분이 들어요?","취미가 뭐예요? → 그 취미는 주로 언제 즐겨요?","회사에서 하루에 몇 시간 일했어요? → 남는 시간엔 보통 뭐 했어요?","일하면서 뭐가 제일 힘들었어요? → 그 힘든 걸 해결하려고 어떻게 노력했어요?","지금까지 어떤 회사들에서 일해봤어요? → 거기서 배운 기술 중에 기억에 남는 거 있어요?","일했던 회사는 어느 나라 회사였어요? → 그 회사 일하는 방식 중에 좋았던 점 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 높은 데서 일할 때 뭘 제일 조심해야 할까요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 그게 왜 중요할까요?","[신규] 작업 도면(설계도) 볼 줄 알아요? → 도면이랑 실제 작업이 다르면 어떻게 해요?","[신규] 용접기 전류랑 전압, 직접 맞출 줄 알아요? → 철판 두께에 따라서 전류를 어떻게 조절해요?","[신규] 용접하고 나서 불량 생기면 어떻게 해요? → 다시 작업하는 거 힘들지 않아요?"],["일하다가 동료가 다치면 어떻게 할 거예요? → 그 상황에서 제일 먼저 해야 할 행동이 뭘까요?","동료들이랑 일할 때 소통은 어떻게 해요? → 말이 잘 안 통하면 어떻게 할 거예요?","한국 가면 어떤 일 하고 싶어요? → 그 일 하려고 준비한 거 있어요?","왜 한국에 가고 싶은 거예요? → 한국 가서 기대하는 점이 뭐예요?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 본인은 그런 태도로 일해본 적 있어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 실제로 그런 경험 있으면 말해줄래요?","동료가 도와달라고 하면 어떻게 해요? → 도와주고 나서는 어떻게 같이 일해요?","기숙사 생활 해본 적 있어요? → 기숙사 살 때 제일 중요한 규칙이 뭘까요?","안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 도움 됐어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → 실제로 사고 나는 거 본 적 있어요?","[신규] 작업장에 불 나면 소화기 쓸 줄 알아요? → 소화기가 어디 있는지 항상 확인해요?","[신규] 안전모 턱끈은 왜 꼭 매야 할까요? → 좀 답답해도 안전을 위해서 참을 수 있죠?","[신규] 크레인이 물건 옮길 때 그 밑으로 지나가면 돼요? → 거기가 왜 위험하다고 생각해요?"],["이름이 뭐예요? → 이름을 한글로 쓸 수 있어요?","나이가 몇 살이에요? → 한국 나이 계산법 들어본 적 있어요?","본인 성격은 어때요? 좀 소개해 줄래요? → 성격이 급한 편이에요, 꼼꼼한 편이에요?","고향은 어디예요? → 고향 날씨는 지금 어때요?","한국 음식 먹어본 적 있어요? → 김치 먹어봤어요? 맛이 어땠어요?","용접 일은 몇 년 정도 했어요? → 처음 시작했을 때보다 지금 실력이 얼마나 늘었어요?","어떤 용접을 할 줄 알아요? → 수평 용접이랑 수직 용접 중에 뭐가 더 쉬워요?","용접할 때 뭐가 제일 중요하다고 생각해요? → '품질'이 왜 중요할까요?","안전장비는 잘 챙겨서 써요? → 안전화가 발에 안 맞으면 어떻게 해요?","마지막으로 하고 싶은 말 있어요? → 면접관한테 꼭 하고 싶은 말 해보세요.","[신규] 무거운 물건 잘 들 수 있어요? → 허리 안 다치게 조심하는 법 알아요?","[신규] 한국에서 돈 벌어서 고향 가면 뭐 하고 싶어요? → 집을 짓거나 가게 차릴 계획 있어요?","[신규] 본인 장점이 뭐예요? → 동료들이 본인을 좋아하는 이유가 뭘까요?"],["가족은 몇 명이에요? → 부모님은 지금 무슨 일 하세요?","오늘 무슨 요일이에요? → 주말에는 보통 뭐 하면서 쉬어요?","취미가 뭐예요? → 한국 와서도 그 취미 계속할 수 있어요?","일하면서 뭐가 제일 힘들었어요? → 힘들 때 스트레스는 어떻게 풀어요?","지금까지 어떤 회사들에서 일해봤어요? → 조선소에서 일해본 적은 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 무서워도 참고 올라갈 수 있어요?","안전장비는 잘 챙겨서 써요? → 보안경 안 쓰면 눈이 어떻게 될까요?","지각하면 어떻게 할 거예요? → 늦을 것 같으면 누구한테 전화해야 해요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 일단 시키는 대로 해보는 편이에요?","왜 한국에 가고 싶은 거예요? → 돈 버는 거 말고 다른 이유도 있어요?","[신규] 그라인더 작업 해본 적 있어요? → 그라인더 날 갈아 끼울 전원 끄는 거 알죠?","[신규] 일하다가 어지럽거나 몸이 아프면 어떻게 해요? → 쓰러질 것 같으면 동료한테 바로 말해야 해요.","[신규] 동료가 무거운 거 들고 있으면 도와줄 거예요? → '도와주세요'라는 한국말 알아요?"],["나이가 몇 살이에요? → 본인보다 어린 반장님이 시켜도 잘 따를 수 있어요?","결혼은 했어요? → 한국 있는 동안 아이가 보고 싶으면 어떻게 해요?","어제는 뭐 했어요? → 한국어 면접 준비했어요?","좋아하는 음식은 뭐예요? → 직접 요리도 할 수 있어요?","회사에서 하루에 몇 시간 일했어요? → 일이 바쁘면 휴일에도 일할 수 있어요?","일했던 회사는 어느 나라 회사였어요? → 외국인 동료들이랑 일해본 적 있어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 용접할 때 깨끗하게 닦고 해야 하죠?","일하다가 동료가 다치면 어떻게 할 거예요? → 119 부를 줄 알아요?","동료들이랑 일할 때 소통은 어떻게 해요? → 손짓 발짓(바디랭귀지)으로도 대화할 수 있어요?","기숙사 생활 해본 적 있어요? → 룸메이트가 시끄럽게 하면 어떻게 해요?","[신규] 수직(Vertical) 용접 해봤어요? → 쇳물 안 흐르게 하는 방법 있어요?","[신규] 작업 끝나면 청소랑 정리는 직접 해요? → 공구 제자리에 안 두면 무슨 문제 생길까요?","[신규] 상사가 화내면 어떻게 반응할 거예요? → 같이 화내지 말고 '죄송합니다' 할 수 있어요?"],["이름이 뭐예요? → 한국 사람들이 부르기 쉬운 별명 있어요?","고향은 어디예요? → 고향 친구 중에 한국 간 사람 있어요?","지금 몇 시예요? → 한국이랑 고향이랑 시간 차이가 얼마나 나요?","내일은 뭐 할 거예요? → 결과 기다리면서 뭐 할 거예요?","싫어하는 음식도 있어요? → 편식하면 건강에 안 좋은 거 알죠?","용접 일은 몇 년 정도 했어요? → 경력 증명서에 적힌 거 다 사실이에요?","어떤 용접을 할 줄 알아요? → CO2(이산화탄소) 용접을 주로 했어요?","안전 교육 받아본 적 있어요? → 심폐소생술(CPR) 해본 적 있어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → '나 하나쯤은 괜찮겠지' 생각하면 안 되죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 시간 약속 지키는 게 기본이죠?","[신규] 용접봉(와이어)은 아껴서 쓰는 편이에요? → 재료 낭비하면 회사가 손해 보는 거 알죠?","[신규] 한국의 '빨리빨리' 문화 알아요? → 급해도 안전은 지켜야 한다는 거 알죠?","[신규] 모르는 사람이랑 방 같이 써도 괜찮아요? → 방 청소 당번 정해서 할 수 있어요?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 새로운 환경에 잘 적응하는 편이에요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 공부하는 거 재밌었어요?","주말엔 보통 뭐 해요? → 빨래나 청소는 언제 해요?","한국 노래나 드라마 본 적 있어요? → 기억나는 한국어 대사 있어요?","직업이 뭐예요? → 용접공이라는 직업에 만족해요?","일하면서 뭐가 제일 힘들었어요? → 날씨 더운 날 용접복 입는 거 힘들지 않아요?","지금까지 어떤 회사들에서 일해봤어요? → 제일 오래 일한 회사는 어디예요?","높은 곳(고소)에서 작업할 수 있어요? → 안전벨트(생명줄) 맬 줄 알아요?","동료가 도와달라고 하면 어떻게 해요? → 내 일이 바빠도 도와줄 수 있어요?","한국 가면 어떤 일 하고 싶어요? → 시키는 일은 뭐든 할 각오 돼 있어요?","[신규] 가스 절단기 써본 적 있어요? → 가스 밸브 잠그는 거 까먹으면 위험하겠죠?","[신규] 여권(Passport)은 항상 잘 챙기고 다녀요? → 여권 잃어버리면 어떻게 해야 하는지 알아요?","[신규] 한국말 잘 못 알아들으면 어떻게 물어볼 거예요? → '다시 한번 말씀해 주세요'라고 말할 수 있어요?"],["가족은 몇 명이에요? → 가족들은 본인이 한국 가는 거 찬성해요?","오늘 기분이 어때요? → 면접이라서 긴장돼요?","취미가 뭐예요? → 운동하는 거 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 야근 수당에 대해서 들어본 적 있어요?","일했던 회사는 어느 나라 회사였어요? → 한국 회사에 대해서 들어본 이야기 있어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 전류랑 전압 잘 맞추는 게 중요하죠?","안전장비는 잘 챙겨서 써요? → 마스크 필터는 자주 갈아끼워요?","일하다가 동료가 다치면 어떻게 할 거예요? → 피 보고 놀라서 도망가면 안 되겠죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 거짓말 안 하는 게 중요하죠?","마지막으로 하고 싶은 말 있어요? → 한국에 꼭 가고 싶은 마음 한번 말해볼래요?","[신규] 제일 존경하는 사람이 누구예요? → 그 사람의 어떤 점을 닮고 싶어요?","[신규] 용접 연기(흄) 안 마시려면 어떻게 해야 해요? → 답답해도 마스크 벗으면 안 되겠죠?","[신규] 오늘 면접 끝나면 뭐 할 거예요? → 집에 가서 푹 쉴 거예요?"],["이름이 뭐예요? → 영어 철자로 이름 말해줄 수 있어요?","나이가 몇 살이에요? → 생년월일이 언제예요?","고향은 어디예요? → 고향에는 공장이 많아요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 선생님은 한국 사람이었어요?","좋아하는 음식은 뭐예요? → 돼지고기 먹을 수 있어요? (종교 때문에 못 먹나요?)","용접 일은 몇 년 정도 했어요? → 자격증 있어요?","어떤 용접을 할 줄 알아요? → 티그(TIG) 용접도 해본 적 있어요?","안전장비는 잘 챙겨서 써요? → 귀마개 하면 소리 잘 안 들리는데 괜찮아요?","지각하면 어떻게 할 거예요? → 늦잠 잔 적 있어요?","한국에서 일하고 싶은 마음이 커요? → 한국 돈 많이 벌고 싶어요?","[신규] 형제나 자매 있어요? → 형제들이랑 안 싸우고 잘 지내는 편이에요?","[신규] 한국어로 숫자 100(백) 말할 수 있어요? → 물건 개수 셀 때 숫자 틀리면 안 되겠죠?","[신규] 일하다가 딴생각 하면 돼요? → 집중 안 하면 다칠 수 있다는 거 알죠?"],["결혼은 했어요? → 아내(혹은 남편)는 무슨 일 해요?","오늘 무슨 요일이에요? → 일요일에는 교회나 사원에 가요?","지금 몇 시예요? → 점심은 먹었어요?","어제는 뭐 했어요? → 술 마셨어요?","직업이 뭐예요? → 이 일 평생 할 생각이에요?","일하면서 뭐가 제일 힘들었어요? → 무거운 거 들 때 허리 안 아파요?","지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 직원이 몇 명이었어요?","높은 곳(고소)에서 작업할 수 있어요? → 다리 떨려서 일 못하면 어떡해요?","안전 교육 받아본 적 있어요? → 소화기 쓰는 법 배웠어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 말대꾸 하는 편이에요?","[신규] 키랑 몸무게는 어떻게 돼요? → 좁은 곳에 들어가서 일할 수 있어요?","[신규] 밤에 일찍 자고 아침에 일찍 일어나요? → 늦게 자면 다음 날 일할 때 피곤하지 않아요?","[신규] 손가락 다친 적 없어요? → 손 한번 쥐었다 폈다 해볼래요?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 친구들은 본인을 어떤 사람이라고 해요?","내일은 뭐 할 거예요? → 한국어 공부 계속 할 생각이에요?","싫어하는 음식도 있어요? → 한국 반찬에서 마늘 냄새 나도 먹을 수 있어요?","주말엔 보통 뭐 해요? → 친구들이랑 축구 해요?","회사에서 하루에 몇 시간 일했어요? → 쉬는 시간은 몇 분이었어요?","일했던 회사는 어느 나라 회사였어요? → 월급은 밀리지 않고 잘 받았어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 불똥(스패터) 잘 털어내는 게 중요해요?","동료들이랑 일할 때 소통은 어떻게 해요? → 동료가 화내면 같이 화내요?","기숙사 생활 해본 적 있어요? → 남의 물건 허락 없이 쓰면 돼요?","왜 한국에 가고 싶은 거예요? → 한국 기술 배워서 고향 돌아가고 싶어요?","[신규] 담배는 피워요? → 정해진 곳에서만 담배 피워야 하는 거 알죠?","[신규] 종교 때문에 기도해야 해요? → 기도 시간 때문에 일 멈추면 안 되는 거 알죠?","[신규] 회사 규칙 어기면 벌금 낼 수도 있는데, 괜찮아요? → 규칙 잘 지키겠다고 약속해요?"],["가족은 몇 명이에요? → 형제 중에 한국 있는 사람 있어요?","한국 노래나 드라마 본 적 있어요? → 한국 사람들 친절해 보였어요?","취미가 뭐예요? → 낚시 좋아해요?","용접 일은 몇 년 정도 했어요? → 배 만드는 일 해본 적 있어요?","어떤 용접을 할 줄 알아요? → 알곤(TIG) 용접도 할 줄 알아요?","안전장비는 잘 챙겨서 써요? → 안전장갑 찢어지면 새걸로 바꿔요?","일하다가 동료가 다치면 어떻게 할 거예요? → 큰 소리로 '도와주세요'라고 외칠 수 있어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → 회사가 피해 입으면 본인 책임도 있죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → '인사' 잘하는 게 중요하죠?","동료가 도와달라고 하면 어떻게 해요? → 웃으면서 도와줄 수 있어요?","[신규] 평소에 운동 좀 해요? → 체력이 좋아서 힘든 일도 잘할 수 있죠?","[신규] 눈(Snow) 본 적 있어요? → 눈 오면 바닥 미끄러우니까 조심해야겠죠?","[신규] 비 와도 출근할 수 있어요? → 날씨 핑계 대고 결근하면 안 되는 거 알죠?"],["이름이 뭐예요? → 이름에 무슨 뜻이 있어요?","오늘 기분이 어때요? → 자신감 있어요?","고향은 어디예요? → 고향 집은 본인 집이에요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 발음 어렵지 않아요?","직업이 뭐예요? → 예전에 다른 일(농사 같은 거) 해본 적 있어요?","일하면서 뭐가 제일 힘들었어요? → 일이 힘들어서 도망가고 싶었던 적 없어요?","지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 왜 그만뒀어요?","높은 곳(고소)에서 작업할 수 있어요? → 사다리 타고 올라갈 수 있어요?","안전 교육 받아본 적 있어요? → 작업 시작하기 전에 체조(스트레칭) 해요?","한국에서 일하고 싶은 마음이 커요? → 한국 음식 잘 먹을 수 있겠어요?","[신규] 스마트폰은 자주 봐요? → 일할 때는 폰을 사물함에 넣어둘 수 있어요?","[신규] 고향 여름은 몇 도까지 올라가요? → 한국 여름도 엄청 덥고 습한데 견딜 수 있어요?","[신규] 저축 목표 금액이 있어요? → 그 돈 모으려면 몇 년 걸릴 것 같아요?"],["나이가 몇 살이에요? → 한국에서는 나이 많은 사람한테 존댓말 써야 하죠?","결혼은 했어요? → (미혼이면) 언제 결혼할 생각이에요?","오늘 무슨 요일이에요? → 월요일부터 토요일까지 일할 수 있어요?","좋아하는 음식은 뭐예요? → 닭고기 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 점심 시간은 1시간이었어요?","일했던 회사는 어느 나라 회사였어요? → 사장님은 좋은 분이었어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 용접 모양(비드)이 예쁘게 나와야 해요?","동료들이랑 일할 때 소통은 어떻게 해요? → 동료 이름 외우려고 노력해요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 고집 피우지 않을 거죠?","지각하면 어떻게 할 거예요? → 5분 전에 도착해서 준비할 수 있어요?","[신규] 한국 친구 사귀고 싶어요? → 한국 사람이랑 친해지려면 인사 잘해야겠죠?","[신규] 작업복 찢어지면 꿰매서 입을 수 있어요? → 옷차림이 단정해야 안전하다는 거 알죠?","[신규] 에어 호스(공기 줄)로 장난치면 돼요? → 사람한테 에어 쏘면 눈 다칠 수 있는 거 알죠?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 화를 잘 참는 성격이에요?","지금 몇 시예요? → 한국은 지금 몇 시인지 알아요?","어제는 뭐 했어요? → 어제 잠은 푹 잤어요?","한국 노래나 드라마 본 적 있어요? → '안녕하세요' 말고 아는 한국말 있어요?","용접 일은 몇 년 정도 했어요? → 용접 기능사 자격증 있어요?","어떤 용접을 할 줄 알아요? → 필렛(Fillet) 용접 많이 해봤어요?","안전장비는 잘 챙겨서 써요? → 방진 마스크(먼지 마스크) 써봤어요?","일하다가 동료가 다치면 어떻게 할 거예요? → 반장님한테 바로 보고해야 해요.","작업 규칙 안 지키면 무슨 문제 생길까요? → 월급 깎여도 할 말 없죠?","기숙사 생활 해본 적 있어요? → 밤에는 조용히 해야 한다는 거 알죠?","[신규] 눈(시력)은 좋아요? → 안경 안 쓰고도 용접 부위 잘 보여요?","[신규] 지게차가 지나가면 어떻게 해야 해요? → 지게차 운전자가 나를 못 볼 수도 있으니까 비켜야겠죠?","[신규] 다른 사람 공구 빌려 쓸 때 어떻게 해요? → 다 쓰고 나면 '고맙습니다' 하고 돌려줘요?"],["가족은 몇 명이에요? → 한국 가면 가족들이 걱정하지 않겠어요?","내일은 뭐 할 거예요? → 친구 만날 계획이에요?","싫어하는 음식도 있어요? → 생선 요리 먹을 수 있어요?","취미가 뭐예요? → 휴일에는 주로 잠만 자요?","직업이 일이에요? → 이 일이 본인 적성에 맞아요?","일하면서 뭐가 제일 힘들었어요? → 한국 여름은 엄청 더운데 일할 수 있어요?","지금까지 어떤 회사들에서 일해봤어요? → 제일 기억에 남는 동료 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 발판이 흔들려도 침착할 수 있어요?","안전 교육 받아본 적 있어요? → 교육 받을 때 안 졸고 잘 들었어요?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → '협동(같이 일하는 것)'이 중요하죠?","[신규] 악력(손 단단한 힘)이 세요? → 무거운 공구 하루 종일 들고 있을 수 있어요?","[신규] 한국의 유명한 회사 이름(삼성, 현대) 알아요? → 한국 배가 세계에서 유명하다는 거 알아요?","[신규] 아침밥은 꼭 챙겨 먹어요? → 밥 안 먹으면 힘 없어서 일 못하지 않겠어요?"],["이름이 뭐예요? → 여권 이름이랑 똑같아요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 숫자 쓸 줄 알아요?","주말엔 보통 뭐 해요? → 고향 친구들이랑 술 마셔요?","좋아하는 음식은 뭐예요? → 국수 요리 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 아침 8시부터 일 시작했어요?","일했던 회사는 어느 나라 회사였어요? → 그 나라 말 조금 할 줄 알아요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 구멍 안 나게 때우는 게 중요하죠?","동료가 도와달라고 하면 어떻게 해요? → 귀찮아하지 않고 도와줄 수 있어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 한국에서는 상사 말 잘 들어야 하죠?","왜 한국에 가고 싶은 거예요? → 한국 문화 체험해 보고 싶어요?","[신규] 본인 혈액형이 뭔지 알아요? → 건강검진 했을 때 아픈 곳은 없었어요?","[신규] 작업 중에 전기가 찌릿하면(감전) 어떻게 해요? → 젖은 손으로 전기 코드 만지면 안 돼요.","[신규] 아침에 반장님 만나면 어떻게 인사해요? → '안녕하십니까' 하고 큰 소리로 인사해요?"],["나이가 몇 살이에요? → 한국 가면 막내일 텐데 심부름 잘 하겠어요?","결혼은 했어요? → 한국에서 돈 벌어서 결혼 자금 모을 거예요?","오늘 기분이 어때요? → 면접관 인상은 어때요?","고향은 어디예요? → 고향 자랑 하나만 해볼래요?","한국 노래나 드라마 본 적 있어요? → 한국 노래 한 소절 부를 수 있어요?","용접 일은 몇 년 정도 했어요? → 용접 누구한테 배웠어요?","어떤 용접을 할 줄 알아요? → 가우징(Gouging) 작업도 해봤어요?","안전장비는 잘 챙겨서 써요? → 안전장비 안 쓰면 작업장에 못 들어가죠?","일하다가 동료가 다치면 어떻게 할 거예요? → 비상벨 누를 줄 알아요?","마지막으로 하고 싶은 말 있어요? → 한국 보내주시면 열심히 일하겠어요?","[신규] 여권에 적힌 이름 철자 외우고 있어요? → 비자 서류에 이름 직접 썼어요?","[신규] 고향 친구들은 본인을 어떤 사람이라고 해요? → 성실하다는 말 자주 들어요?","[신규] 합격하면 언제 한국으로 떠날 수 있어요? → 짐 미리 싸놓고 기다릴 수 있어요?"]];
+const QUESTIONS_DB=[["이름이 뭐예요? → 그 이름은 누가 지어줬어요?","나이가 몇 살이에요? → 지금 나이에 제일 하고 싶은 일이 뭐예요?","가족은 몇 명이에요? → 가족 중에서 누가 본인을 제일 많이 도와줘요?","고향은 어디예요? → 고향에서 제일 좋아했던 장소는 어디예요?","본인 성격은 어때요? → 그 성격이 일할 때 어떤 도움이 될까요?","용접 일은 몇 년 정도 했어요? → 일하면서 어떤 용접을 제일 많이 해봤어요?","어떤 용접을 할 줄 알아요? → 그중에서 제일 자신 있는 건 뭐예요?","안전장비는 잘 챙겨서 써요? → 그중에서 뭘 제일 자주 써요?","안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 기억에 남아요?","한국에서 일하고 싶은 마음이 커요? → 한국 오면 뭐가 제일 기대돼요?","[신규] 매운 한국 음식도 잘 먹을 수 있어요? → 음식이 입에 안 맞으면 어떻게 할 거예요?","[신규] 월급 받으면 제일 먼저 뭐 하고 싶어요? → 돈 모아서 고향에 보내줄 거예요?","[신규] 고향 집에서 회사까지는 멀었어요? → 거리가 멀어도 지각 안 하고 다닐 수 있죠?"],["오늘 무슨 요일이에요? → 오늘 꼭 해야 일 있어요?","지금 몇 시예요? → 보통 이 시간엔 뭐 하고 있어요?","어제는 뭐 했어요? → 어제 했던 일 중에 뭐가 제일 기억에 남아요?","내일은 뭐 할 거예요? → 내일 할 일을 위해 오늘 준비해 둔 거 있어요?","좋아하는 음식은 뭐예요? → 그 음식은 누구랑 먹는 걸 좋아해요?","싫어하는 음식도 있어요? → 그 음식은 왜 싫어하게 됐어요?","주말엔 보통 뭐 해요? → 주말에 자주 가는 곳 있어요?","한국 노래나 드라마 본 적 있어요? → 좋아하는 한국 노래나 배우 있어요?","직업이 뭐예요? → 지금 그 직업을 선택한 이유가 있어요?","지각하면 어떻게 할 거예요? → 지각 안 하려고 본인은 어떤 노력을 해요?","[신규] 아침엔 보통 몇 시에 일어나요? → 일어나서 제일 먼저 하는 일이 뭐예요?","[신규] 한국 겨울이 진짜 춥다는 거 알고 있어요? → 날씨가 추워도 밖에서 일할 수 있겠어요?","[신규] 작업복 입고 일하는 거 괜찮아요? → 옷이 더러워지면 직접 빨래할 수 있어요?"],["결혼은 했어요? → 가족들이랑은 자주 연락해요?","한국어 공부한 지는 얼마나 됐어요? → 처음에 어떻게 공부 시작하게 됐어요?","오늘 기분이 어때요? → 왜 그런 기분이 들어요?","취미가 뭐예요? → 그 취미는 주로 언제 즐겨요?","회사에서 하루에 몇 시간 일했어요? → 남는 시간엔 보통 뭐 했어요?","일하면서 뭐가 제일 힘들었어요? → 그 힘든 걸 해결하려고 어떻게 노력했어요?","지금까지 어떤 회사들에서 일해봤어요? → 거기서 배운 기술 중에 기억에 남는 거 있어요?","일했던 회사는 어느 나라 회사였어요? → 그 회사 일하는 방식 중에 좋았던 점 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 높은 데서 일할 때 뭘 제일 조심해야 할까요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 그게 왜 중요할까요?","[신규] 작업 도면(설계도) 볼 줄 알아요? → 도면이랑 실제 작업이 다르면 어떻게 해요?","[신규] 용접기 전류랑 전압, 직접 맞출 줄 알아요? → 철판 두께에 따라서 전류를 어떻게 조절해요?","[신규] 용접하고 나서 불량 생기면 어떻게 해요? → 다시 작업하는 거 힘들지 않아요?"],["일하다가 동료가 다치면 어떻게 할 거예요? → 그 상황에서 제일 먼저 해야 할 행동이 뭘까요?","동료들이랑 일할 때 소통은 어떻게 해요? → 말이 잘 안 통하면 어떻게 할 거예요?","한국 가면 어떤 일 하고 싶어요? → 그 일 하려고 준비한 거 있어요?","왜 한국에 가고 싶은 거예요? → 한국 가서 기대하는 점이 뭐예요?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 본인은 그런 태도로 일해본 적 있어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 실제로 그런 경험 있으면 말해줄래요?","동료가 도와달라고 하면 어떻게 해요? → 도와주고 나서는 어떻게 같이 일해요?","기숙사 생활 해본 적 있어요? → 기숙사 살 때 제일 중요한 규칙이 뭘까요?","안전 교육 받아본 적 있어요? → 배운 것 중에 뭐가 제일 도움 됐어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → 실제로 사고 나는 거 본 적 있어요?","[신규] 작업장에 불 나면 소화기 쓸 줄 알아요? → 소화기가 어디 있는지 항상 확인해요?","[신규] 안전모 턱끈은 왜 꼭 매야 할까요? → 좀 답답해도 안전을 위해서 참을 수 있죠?","[신규] 크레인이 물건 옮길 때 그 밑으로 지나가면 돼요? → 거기가 왜 위험하다고 생각해요?"],["이름이 뭐예요? → 이름을 한글로 쓸 수 있어요?","나이가 몇 살이에요? → 한국 나이 계산법 들어본 적 있어요?","본인 성격은 어때요? 좀 소개해 줄래요? → 성격이 급한 편이에요, 꼼꼼한 편이에요?","고향은 어디예요? → 고향 날씨는 지금 어때요?","한국 음식 먹어본 적 있어요? → 김치 먹어봤어요? 맛이 어땠어요?","용접 일은 몇 년 정도 했어요? → 처음 시작했을 때보다 지금 실력이 얼마나 늘었어요?","어떤 용접을 할 줄 알아요? → 수평 용접이랑 수직 용접 중에 뭐가 더 쉬워요?","용접할 때 뭐가 제일 중요하다고 생각해요? → '품질'이 왜 중요할까요?","안전장비는 잘 챙겨서 써요? → 안전화가 발에 안 맞으면 어떻게 해요?","마지막으로 하고 싶은 말 있어요? → 면접관한테 꼭 하고 싶은 말 해보세요.","[신규] 무거운 물건 잘 들 수 있어요? → 허리 안 다치게 조심하는 법 알아요?","[신규] 한국에서 돈 벌어서 고향 가면 뭐 하고 싶어요? → 집을 짓거나 가게 차릴 계획 있어요?","[신규] 본인 장점이 뭐예요? → 동료들이 본인을 좋아하는 이유가 뭘까요?"],["가족은 몇 명이에요? → 부모님은 지금 무슨 일 하세요?","오늘 무슨 요일이에요? → 주말에는 보통 뭐 하면서 쉬어요?","취미가 뭐예요? → 한국 와서도 그 취미 계속할 수 있어요?","일하면서 뭐가 제일 힘들었어요? → 힘들 때 스트레스는 어떻게 풀어요?","지금까지 어떤 회사들에서 일해봤어요? → 조선소에서 일해본 적은 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 무서워도 참고 올라갈 수 있어요?","안전장비는 잘 챙겨서 써요? → 보안경 안 쓰면 눈이 어떻게 될까요?","지각하면 어떻게 할 거예요? → 늦을 것 같으면 누구한테 전화해야 해요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 일단 시키는 대로 해보는 편이에요?","왜 한국에 가고 싶은 거예요? → 돈 버는 거 말고 다른 이유도 있어요?","[신규] 그라인더 작업 해본 적 있어요? → 그라인더 날 갈아 끼울 전원 끄는 거 알죠?","[신규] 일하다가 어지럽거나 몸이 아프면 어떻게 해요? → 쓰러질 것 같으면 동료한테 바로 말해야 해요.","[신규] 동료가 무거운 거 들고 있으면 도와줄 거예요? → '도와주세요'라는 한국말 알아요?"],["나이가 몇 살이에요? → 본인보다 어린 반장님이 시켜도 잘 따를 수 있어요?","결혼은 했어요? → 한국 있는 동안 아이가 보고 싶으면 어떻게 해요?","어제는 뭐 했어요? → 한국어 면접 준비했어요?","좋아하는 음식은 뭐예요? → 직접 요리도 할 수 있어요?","회사에서 하루에 몇 시간 일했어요? → 일이 바쁘면 휴일에도 일할 수 있어요?","일했던 회사는 어느 나라 회사였어요? → 외국인 동료들이랑 일해본 적 있어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 용접할 때 깨끗하게 닦고 해야 하죠?","일하다가 동료가 다치면 어떻게 할 거예요? → 119 부를 줄 알아요?","동료들이랑 일할 때 소통은 어떻게 해요? → 손짓 발짓(바디랭귀지)으로도 대화할 수 있어요?","기숙사 생활 해본 적 있어요? → 룸메이트가 시끄럽게 하면 어떻게 해요?","[신규] 수직(Vertical) 용접 해봤어요? → 쇳물 안 흐르게 하는 방법 있어요?","[신규] 작업 끝나면 청소랑 정리는 직접 해요? → 공구 제자리에 안 두면 무슨 문제 생길까요?","[신규] 상사가 화내면 어떻게 반응할 거예요? → 같이 화내지 말고 '죄송합니다' 할 수 있어요?"],["이름이 뭐예요? → 한국 사람들이 부르기 쉬운 별명 있어요?","고향은 어디예요? → 고향 친구 중에 한국 간 사람 있어요?","지금 몇 시예요? → 한국이랑 고향이랑 시간 차이가 얼마나 나요?","내일은 뭐 할 거예요? → 결과 기다리면서 뭐 할 거예요?","싫어하는 음식도 있어요? → 편식하면 건강에 안 좋은 거 알죠?","용접 일은 몇 년 정도 했어요? → 경력 증명서에 적힌 거 다 사실이에요?","어떤 용접을 할 줄 알아요? → CO2(이산화탄소) 용접을 주로 했어요?","안전 교육 받아본 적 있어요? → 심폐소생술(CPR) 해본 적 있어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → '나 하나쯤은 괜찮겠지' 생각하면 안 되죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 시간 약속 지키는 게 기본이죠?","[신규] 용접봉(와이어)은 아껴서 쓰는 편이에요? → 재료 낭비하면 회사가 손해 보는 거 알죠?","[신규] 한국의 '빨리빨리' 문화 알아요? → 급해도 안전은 지켜야 한다는 거 알죠?","[신규] 모르는 사람이랑 방 같이 써도 괜찮아요? → 방 청소 당번 정해서 할 수 있어요?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 새로운 환경에 잘 적응하는 편이에요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 공부하는 거 재밌었어요?","주말엔 보통 뭐 해요? → 빨래나 청소는 언제 해요?","한국 노래나 드라마 본 적 있어요? → 기억나는 한국어 대사 있어요?","직업이 뭐예요? → 용접공이라는 직업에 만족해요?","일하면서 뭐가 제일 힘들었어요? → 날씨 더운 날 용접복 입는 거 힘들지 않아요?","지금까지 어떤 회사들에서 일해봤어요? → 제일 오래 일한 회사는 어디예요?","높은 곳(고소)에서 작업할 수 있어요? → 안전벨트(생명줄) 맬 줄 알아요?","동료가 도와달라고 하면 어떻게 해요? → 내 일이 바빠도 도와줄 수 있어요?","한국 가면 어떤 일 하고 싶어요? → 시키는 일은 뭐든 할 각오 돼 있어요?","[신규] 가스 절단기 써본 적 있어요? → 가스 밸브 잠그는 거 까먹으면 위험하겠죠?","[신규] 여권(Passport)은 항상 잘 챙기고 다녀요? → 여권 잃어버리면 어떻게 해야 하는지 알아요?","[신규] 한국말 잘 못 알아들으면 어떻게 물어볼 거예요? → '다시 한번 말씀해 주세요'라고 말할 수 있어요?"],["가족은 몇 명이에요? → 가족들은 본인이 한국 가는 거 찬성해요?","오늘 기분이 어때요? → 면접이라서 긴장돼요?","취미가 뭐예요? → 운동하는 거 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 야근 수당에 대해서 들어본 적 있어요?","일했던 회사는 어느 나라 회사였어요? → 한국 회사에 대해서 들어본 이야기 있어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 전류랑 전압 잘 맞추는 게 중요하죠?","안전장비는 잘 챙겨서 써요? → 마스크 필터는 자주 갈아끼워요?","일하다가 동료가 다치면 어떻게 할 거예요? → 피 보고 놀라서 도망가면 안 되겠죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → 거짓말 안 하는 게 중요하죠?","마지막으로 하고 싶은 말 있어요? → 한국에 꼭 가고 싶은 마음 한번 말해볼래요?","[신규] 제일 존경하는 사람이 누구예요? → 그 사람의 어떤 점을 닮고 싶어요?","[신규] 용접 연기(흄) 안 마시려면 어떻게 해야 해요? → 답답해도 마스크 벗으면 안 되겠죠?","[신규] 오늘 면접 끝나면 뭐 할 거예요? → 집에 가서 푹 쉴 거예요?"],["이름이 뭐예요? → 영어 철자로 이름 말해줄 수 있어요?","나이가 몇 살이에요? → 생년월일이 언제예요?","고향은 어디예요? → 고향에는 공장이 많아요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 선생님은 한국 사람이었어요?","좋아하는 음식은 뭐예요? → 돼지고기 먹을 수 있어요? (종교 때문에 못 먹나요?)","용접 일은 몇 년 정도 했어요? → 자격증 있어요?","어떤 용접을 할 줄 알아요? → 티그(TIG) 용접도 해본 적 있어요?","안전장비는 잘 챙겨서 써요? → 귀마개 하면 소리 잘 안 들리는데 괜찮아요?","지각하면 어떻게 할 거예요? → 늦잠 잔 적 있어요?","한국에서 일하고 싶은 마음이 커요? → 한국 돈 많이 벌고 싶어요?","[신규] 형제나 자매 있어요? → 형제들이랑 안 싸우고 잘 지내는 편이에요?","[신규] 한국어로 숫자 100(백) 말할 수 있어요? → 물건 개수 셀 때 숫자 틀리면 안 되겠죠?","[신규] 일하다가 딴생각 하면 돼요? → 집중 안 하면 다칠 수 있다는 거 알죠?"],["결혼은 했어요? → 아내(혹은 남편)는 무슨 일 해요?","오늘 무슨 요일이에요? → 일요일에는 교회나 사원에 가요?","지금 몇 시예요? → 점심은 먹었어요?","어제는 뭐 했어요? → 술 마셨어요?","직업이 뭐예요? → 이 일 평생 할 생각이에요?","일하면서 뭐가 제일 힘들었어요? → 무거운 거 들 때 허리 안 아파요?","지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 직원이 몇 명이었어요?","높은 곳(고소)에서 작업할 수 있어요? → 다리 떨려서 일 못하면 어떡해요?","안전 교육 받아본 적 있어요? → 소화기 쓰는 법 배웠어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 말대꾸 하는 편이에요?","[신규] 키랑 몸무게는 어떻게 돼요? → 좁은 곳에 들어가서 일할 수 있어요?","[신규] 밤에 일찍 자고 아침에 일찍 일어나요? → 늦게 자면 다음 날 일할 때 피곤하지 않아요?","[신규] 손가락 다친 적 없어요? → 손 한번 쥐었다 폈다 해볼래요?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 친구들은 본인을 어떤 사람이라고 해요?","내일은 뭐 할 거예요? → 한국어 공부 계속 할 생각이에요?","싫어하는 음식도 있어요? → 한국 반찬에서 마늘 냄새 나도 먹을 수 있어요?","주말엔 보통 뭐 해요? → 친구들이랑 축구 해요?","회사에서 하루에 몇 시간 일했어요? → 쉬는 시간은 몇 분이었어요?","일했던 회사는 어느 나라 회사였어요? → 월급은 밀리지 않고 잘 받았어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 불똥(스패터) 잘 털어내는 게 중요해요?","동료들이랑 일할 때 소통은 어떻게 해요? → 동료가 화내면 같이 화내요?","기숙사 생활 해본 적 있어요? → 남의 물건 허락 없이 쓰면 돼요?","왜 한국에 가고 싶은 거예요? → 한국 기술 배워서 고향 돌아가고 싶어요?","[신규] 담배는 피워요? → 정해진 곳에서만 담배 피워야 하는 거 알죠?","[신규] 종교 때문에 기도해야 해요? → 기도 시간 때문에 일 멈추면 안 되는 거 알죠?","[신규] 회사 규칙 어기면 벌금 낼 수도 있는데, 괜찮아요? → 규칙 잘 지키겠다고 약속해요?"],["가족은 몇 명이에요? → 형제 중에 한국 있는 사람 있어요?","한국 노래나 드라마 본 적 있어요? → 한국 사람들 친절해 보였어요?","취미가 뭐예요? → 낚시 좋아해요?","용접 일은 몇 년 정도 했어요? → 배 만드는 일 해본 적 있어요?","어떤 용접을 할 줄 알아요? → 알곤(TIG) 용접도 할 줄 알아요?","안전장비는 잘 챙겨서 써요? → 안전장갑 찢어지면 새걸로 바꿔요?","일하다가 동료가 다치면 어떻게 할 거예요? → 큰 소리로 '도와주세요'라고 외칠 수 있어요?","작업 규칙 안 지키면 무슨 문제 생길까요? → 회사가 피해 입으면 본인 책임도 있죠?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → '인사' 잘하는 게 중요하죠?","동료가 도와달라고 하면 어떻게 해요? → 웃으면서 도와줄 수 있어요?","[신규] 평소에 운동 좀 해요? → 체력이 좋아서 힘든 일도 잘할 수 있죠?","[신규] 눈(Snow) 본 적 있어요? → 눈 오면 바닥 미끄러우니까 조심해야겠죠?","[신규] 비 와도 출근할 수 있어요? → 날씨 핑계 대고 결근하면 안 되는 거 알죠?"],["이름이 뭐예요? → 이름에 무슨 뜻이 있어요?","오늘 기분이 어때요? → 자신감 있어요?","고향은 어디예요? → 고향 집은 본인 집이에요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 발음 어렵지 않아요?","직업이 뭐예요? → 예전에 다른 일(농사 같은 거) 해본 적 있어요?","일하면서 뭐가 제일 힘들었어요? → 일이 힘들어서 도망가고 싶었던 적 없어요?","지금까지 어떤 회사들에서 일해봤어요? → 그 회사는 왜 그만뒀어요?","높은 곳(고소)에서 작업할 수 있어요? → 사다리 타고 올라갈 수 있어요?","안전 교육 받아본 적 있어요? → 작업 시작하기 전에 체조(스트레칭) 해요?","한국에서 일하고 싶은 마음이 커요? → 한국 음식 잘 먹을 수 있겠어요?","[신규] 스마트폰은 자주 봐요? → 일할 때는 폰을 사물함에 넣어둘 수 있어요?","[신규] 고향 여름은 몇 도까지 올라가요? → 한국 여름도 엄청 덥고 습한데 견딜 수 있어요?","[신규] 저축 목표 금액이 있어요? → 그 돈 모으려면 몇 년 걸릴 것 같아요?"],["나이가 몇 살이에요? → 한국에서는 나이 많은 사람한테 존댓말 써야 하죠?","결혼은 했어요? → (미혼이면) 언제 결혼할 생각이에요?","오늘 무슨 요일이에요? → 월요일부터 토요일까지 일할 수 있어요?","좋아하는 음식은 뭐예요? → 닭고기 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 점심 시간은 1시간이었어요?","일했던 회사는 어느 나라 회사였어요? → 사장님은 좋은 분이었어요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 용접 모양(비드)이 예쁘게 나와야 해요?","동료들이랑 일할 때 소통은 어떻게 해요? → 동료 이름 외우려고 노력해요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 고집 피우지 않을 거죠?","지각하면 어떻게 할 거예요? → 5분 전에 도착해서 준비할 수 있어요?","[신규] 한국 친구 사귀고 싶어요? → 한국 사람이랑 친해지려면 인사 잘해야겠죠?","[신규] 작업복 찢어지면 꿰매서 입을 수 있어요? → 옷차림이 단정해야 안전하다는 거 알죠?","[신규] 에어 호스(공기 줄)로 장난치면 돼요? → 사람한테 에어 쏘면 눈 다칠 수 있는 거 알죠?"],["본인 성격은 어때요? 좀 소개해 줄래요? → 화를 잘 참는 성격이에요?","지금 몇 시예요? → 한국은 지금 몇 시인지 알아요?","어제는 뭐 했어요? → 어제 잠은 푹 잤어요?","한국 노래나 드라마 본 적 있어요? → '안녕하세요' 말고 아는 한국말 있어요?","용접 일은 몇 년 정도 했어요? → 용접 기능사 자격증 있어요?","어떤 용접을 할 줄 알아요? → 필렛(Fillet) 용접 많이 해봤어요?","안전장비는 잘 챙겨서 써요? → 방진 마스크(먼지 마스크) 써봤어요?","일하다가 동료가 다치면 어떻게 할 거예요? → 반장님한테 바로 보고해야 해요.","작업 규칙 안 지키면 무슨 문제 생길까요? → 월급 깎여도 할 말 없죠?","기숙사 생활 해본 적 있어요? → 밤에는 조용히 해야 한다는 거 알죠?","[신규] 눈(시력)은 좋아요? → 안경 안 쓰고도 용접 부위 잘 보여요?","[신규] 지게차가 지나가면 어떻게 해야 해요? → 지게차 운전자가 나를 못 볼 수도 있으니까 비켜야겠죠?","[신규] 다른 사람 공구 빌려 쓸 때 어떻게 해요? → 다 쓰고 나면 '고맙습니다' 하고 돌려줘요?"],["가족은 몇 명이에요? → 한국 가면 가족들이 걱정하지 않겠어요?","내일은 뭐 할 거예요? → 친구 만날 계획이에요?","싫어하는 음식도 있어요? → 생선 요리 먹을 수 있어요?","취미가 뭐예요? → 휴일에는 주로 잠만 자요?","직업이 일이에요? → 이 일이 본인 적성에 맞아요?","일하면서 뭐가 제일 힘들었어요? → 한국 여름은 엄청 더운데 일할 수 있어요?","지금까지 어떤 회사들에서 일해봤어요? → 제일 기억에 남는 동료 있어요?","높은 곳(고소)에서 작업할 수 있어요? → 발판이 흔들려도 침착할 수 있어요?","안전 교육 받아본 적 있어요? → 교육 받을 때 안 졸고 잘 들었어요?","한국 회사에서 필요한 태도가 뭐라고 생각해요? → '협동(같이 일하는 것)'이 중요하죠?","[신규] 악력(손 단단한 힘)이 세요? → 무거운 공구 하루 종일 들고 있을 수 있어요?","[신규] 한국의 유명한 회사 이름(삼성, 현대) 알아요? → 한국 배가 세계에서 유명하다는 거 알아요?","[신규] 아침밥은 꼭 챙겨 먹어요? → 밥 안 먹으면 힘 없어서 일 못하지 않겠어요?"],["이름이 뭐예요? → 여권 이름이랑 똑같아요?","한국어 공부한 지는 얼마나 됐어요? → 한국어 숫자 쓸 줄 알아요?","주말엔 보통 뭐 해요? → 고향 친구들이랑 술 마셔요?","좋아하는 음식은 뭐예요? → 국수 요리 좋아해요?","회사에서 하루에 몇 시간 일했어요? → 아침 8시부터 일 시작했어요?","일했던 회사는 어느 나라 회사였어요? → 그 나라 말 조금 할 줄 알아요?","용접할 때 뭐가 제일 중요하다고 생각해요? → 구멍 안 나게 때우는 게 중요하죠?","동료가 도와달라고 하면 어떻게 해요? → 귀찮아하지 않고 도와줄 수 있어요?","반장님이 시키는 거랑 내 생각이 다르면 어떻게 할래요? → 한국에서는 상사 말 잘 들어야 하죠?","왜 한국에 가고 싶은 거예요? → 한국 문화 체험해 보고 싶어요?","[신규] 본인 혈액형이 뭔지 알아요? → 건강검진 했을 때 아픈 곳은 없었어요?","[신규] 작업 중에 전기가 찌릿하면(감전) 어떻게 해요? → 젖은 손으로 전기 코드 만지면 안 돼요.","[신규] 아침에 반장님 만나면 어떻게 인사해요? → '안녕하십니까' 하고 큰 소리로 인사해요?"],["나이가 몇 살이에요? → 한국 가면 막내일 텐데 심부름 잘 하겠어요?","결혼은 했어요? → 한국에서 돈 벌어서 결혼 자금 모을 거예요?","오늘 기분이 어때요? → 면접관 인상은 어때요?","고향은 어디예요? → 고향 자랑 하나만 해볼래요?","한국 노래나 드라마 본 적 있어요? → 한국 노래 한 소절 부를 수 있어요?","용접 일은 몇 년 정도 했어요? → 용접 누구한테 배웠어요?","어떤 용접을 할 줄 알아요? → 가우징(Gouging) 작업도 해봤어요?","안전장비는 잘 챙겨서 써요? → 안전장비 안 쓰면 작업장에 못 들어가죠?","일하다가 동료가 다치면 어떻게 할 거예요? → 비상벨 누를 줄 알아요?","마지막으로 하고 싶은 말 있어요? → 한국 보내주시면 열심히 일하겠어요?","[신규] 여권에 적힌 이름 철자 외우고 있어요? → 비자 서류에 이름 직접 썼어요?","[신규] 고향 친구들은 본인을 어떤 사람이라고 해요? → 성실하다는 말 자주 들어요?","[신규] 합격하면 언제 한국으로 떠날 수 있어요? → 짐 미리 싸놓고 기다릴 수 있어요?"]];
 const CRITERIA={1:["<span class='hl-red'>질문 의도 파악이 전혀 안 됨</span>. 엉뚱한 대답이나 침묵.","<span class='hl-red'>질문을 여러 번 바꾸어 말해야</span> 겨우 이해함. 단답형 위주.","간단한 질문은 즉시 이해하나, 복합 질문은 <span class='hl-red'>다시 묻거나 생각 시간 필요</span>.","<span class='hl-red'>대부분의 질문을 한 번에 이해하고</span> 즉시 답변함. 대화 흐름이 자연스러움.","질문의 <span class='hl-red'>숨은 의도까지 파악</span>하여 답변. 한국인과 대화하듯 자연스러운 소통."],2:["발음을 <span class='hl-red'>전혀 알아들을 수 없음</span>. 모국어 억양이 너무 강함.","억양이 강해 집중해야 겨우 이해 가능. <span class='hl-red'>특정 발음 오류</span>가 심함.","외국인 특유의 억양이 있으나 <span class='hl-red'>의사소통에 큰 지장 없음</span>.","발음이 비교적 정확하고 억양이 자연스러움. <span class='hl-red'>명확하게 전달됨</span>.","<span class='hl-red'>한국인과 유사한 억양</span>과 명확한 발음 구사. 듣기에 편안함."],3:["문장 구성 불가, <span class='hl-red'>단어만 나열함</span>. 조사를 전혀 사용 못함.","<span class='hl-red'>조사를 자주 생략</span>하거나 틀리게 사용. 주어+서술어 단순 구조.","기본적인 문장 구조를 갖춤. <span class='hl-red'>시제 오류가 가끔</span> 있음.","<span class='hl-red'>연결 어미(-고, -지만)</span>를 사용하여 문장을 이어 말함. 시제 정확함.","<span class='hl-red'>복잡한 문장(복문)</span>을 자연스럽게 구사. 높임말/반말 정확히 구분."],4:["기본 어휘(숫자, 날짜 등)조차 혼동함. <span class='hl-red'>직무 용어 전무함</span>.","기초적인 일상 어휘만 제한적으로 사용. <span class='hl-red'>직무/현장 용어를 거의 모름</span>.","일상 대화 어휘 충분. <span class='hl-red'>직무 관련 기초 용어</span>(용접, 안전모 등)를 알고 있음.","상황에 맞는 적절한 어휘 선택. <span class='hl-red'>직무 용어를 섞어서</span> 구체적으로 설명 가능.","어휘력이 풍부하여 <span class='hl-red'>유의어를 활용</span>해 표현. 모르는 단어는 풀어서 설명 가능."],5:["'네/아니요' 단답형 위주. <span class='hl-red'>매우 수동적인 태도</span>.","단답 후 <span class='hl-red'>추가 질문을 해야</span> 겨우 짧게 덧붙임.","본인의 의사를 한두 문장으로 표현함. <span class='hl-red'>간단한 이유나 근거</span>를 댈 수 있음.","구체적인 사례나 경험을 들어 설명함. <span class='hl-red'>논리적으로 말하려 노력함</span>.","<span class='hl-red'>기승전결이 있는</span> 이야기 구성 가능. 주도적으로 대화를 확장함."],6:["<span class='hl-red'>눈을 전혀 맞추지 못하고</span> 고개를 숙임. 목소리가 매우 작음.","눈 맞춤이 불안정하고 자세가 구부정함. <span class='hl-red'>자신감이 없어 보임</span>.","면접관과 적절히 눈을 맞추며 <span class='hl-red'>평범하게 인사함</span>. 기본 예의를 갖춤.","바른 자세로 <span class='hl-red'>자신감 있게</span> 응답함. 눈 맞춤이 자연스럽고 목소리에 힘이 있음.","매우 적극적이고 밝은 태도. <span class='hl-red'>아이컨택이 훌륭</span>하며 한국 문화에 맞는 제스처 사용."]};
 const SCORES_10=[2,4,6,8,10];const SCORES_20=[4,8,12,16,20];const SCORE_LABELS=["매우 부족","부족","보통","우수","매우 우수"];
 
-// --- 탭 및 메뉴 로직 ---
 function navTo(pageId){['dashboard','evaluation','admin'].forEach(id=>{document.getElementById('page-'+id).classList.add('hidden');document.getElementById('nav-'+id).classList.remove('active')});document.getElementById('page-'+pageId).classList.remove('hidden');document.getElementById('nav-'+pageId).classList.add('active');if(pageId==='dashboard')renderDashboard();if(pageId==='admin')renderAdminTable()}
-function setTab(tabName){currentTab=tabName;['korean','skill'].forEach(t=>{document.getElementById('view-'+t).classList.add('hidden');const btn=document.getElementById('tab-'+t);btn.classList.remove('text-white','bg-[#002B5C]','shadow-md');btn.classList.add('text-slate-500','bg-transparent','hover:bg-slate-200/50')});document.getElementById('view-'+tabName).classList.remove('hidden');const activeBtn=document.getElementById('tab-'+tabName);activeBtn.classList.add('text-white','bg-[#002B5C]','shadow-md');activeBtn.classList.remove('text-slate-500','bg-transparent','hover:bg-slate-200/50');document.getElementById('btn-save-text').innerText='평가 저장 완료';}
+function setTab(tabName){currentTab=tabName;['korean','skill'].forEach(t=>{document.getElementById('view-'+t).classList.add('hidden');const btn=document.getElementById('tab-'+t);btn.classList.remove('text-white','bg-cyan-800','border-cyan-400','shadow-[0_0_15px_rgba(34,211,238,0.3)]');btn.classList.add('text-slate-400','bg-transparent','border-transparent','hover:bg-slate-800','hover:text-slate-200')});document.getElementById('view-'+tabName).classList.remove('hidden');const activeBtn=document.getElementById('tab-'+tabName);activeBtn.classList.add('text-white','bg-cyan-800','border-cyan-400','shadow-[0_0_15px_rgba(34,211,238,0.3)]');activeBtn.classList.remove('text-slate-400','bg-transparent','border-transparent','hover:bg-slate-800','hover:text-slate-200');document.getElementById('btn-save-text').innerText='평가 저장 완료';}
 function updateHeaderLocation(){const loc=(confCountry&&confAgency)?`${confCountry} / ${confAgency}`:'국가/업체 미설정';document.getElementById('header-location').innerText=loc}
 
-// --- 평가 화면 (한국어) ---
 function renderEvalItems(){
     const container=document.getElementById('korean-items');
     container.innerHTML='';
@@ -796,20 +895,20 @@ function renderEvalItems(){
         for(let i=0;i<5;i++){
             const label=SCORE_LABELS[i];
             const score=(item.max===10)?SCORES_10[i]:SCORES_20[i];
-            buttonsHtml+=`<button type="button" onclick="setScore(${item.id}, ${i}, ${item.max})" id="btn-${item.id}-${i}" class="score-btn"><span class="text-[10px] opacity-70 mb-0.5">${label}</span><span class="text-base font-black font-mono">${score}</span></button>`
+            buttonsHtml+=`<button type="button" onclick="setScore(${item.id}, ${i}, ${item.max})" id="btn-${item.id}-${i}" class="score-btn font-tech"><span class="text-[10px] font-kor opacity-90 mb-0.5 tracking-tight text-slate-300">${label}</span><span class="text-base font-black">${score}</span></button>`
         }
         buttonsHtml+='</div>';
         container.innerHTML+=`
-        <div class="bg-white p-3.5 md:p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-blue-200">
+        <div class="hud-card p-3.5 md:p-4 transition-all mb-2">
             <div class="flex justify-between items-center mb-2.5">
-                <span class="font-bold text-[15px] text-slate-800 tracking-tight flex items-center gap-1.5"><i class="fa-solid ${item.icon} text-[#002B5C] opacity-70"></i> ${item.title}</span>
-                <span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded border border-slate-200">MAX ${item.max}점</span>
+                <span class="font-bold text-[15px] text-white tracking-tight flex items-center gap-1.5 font-kor"><i class="fa-solid ${item.icon} text-cyan-400 opacity-90"></i> ${item.title}</span>
+                <span class="font-tech text-[10px] bg-slate-800 text-cyan-300 font-black px-2 py-0.5 rounded-sm border border-slate-600 shadow-inner">MAX ${item.max}</span>
             </div>
             ${buttonsHtml}
             <input type="hidden" id="input-${item.id}" value="2">
-            <div class="relative">
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-l-md"></div>
-                <p id="desc-${item.id}" class="text-sm font-medium text-slate-600 bg-slate-50/80 p-2.5 pl-3.5 rounded-md border border-slate-100 leading-snug"></p>
+            <div class="relative mt-2">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-cyan-400 rounded-l-sm"></div>
+                <p id="desc-${item.id}" class="text-sm font-bold text-slate-100 bg-slate-800/80 p-2.5 pl-3.5 rounded-sm border border-slate-600 leading-snug font-kor shadow-inner"></p>
             </div>
         </div>`
     });
@@ -818,7 +917,6 @@ function setScore(id,valIndex,max){document.getElementById(`input-${id}`).value=
 function updateEvalUI(id,valIndex){document.getElementById(`desc-${id}`).innerHTML=CRITERIA[id][valIndex];for(let i=0;i<5;i++){const btn=document.getElementById(`btn-${id}-${i}`);if(i===valIndex){btn.classList.add(`active-${i}`)}else{btn.classList.remove('active-0','active-1','active-2','active-3','active-4')}}calcKoreanTotal()}
 function calcKoreanTotal(){let total=0;for(let i=1;i<=6;i++){const v=parseInt(document.getElementById(`input-${i}`).value);const max=(i===2||i===6)?10:20;total+=(max===10)?SCORES_10[v]:SCORES_20[v]}const topScore=document.getElementById('korean-total-score-fixed');if(topScore)topScore.innerText=total;return total}
 
-// --- 평가 화면 (기량) ---
 function calcSkillGrade(type) {
     let val = 0; let displayId = ""; let g = "E"; let isPre = false;
     
@@ -846,7 +944,7 @@ function calcSkillGrade(type) {
         } else {
             isPass = (type === 'weld' ? val >= 60 : val >= 50);
         }
-        el.className = `text-5xl font-black font-mono transition-colors duration-300 ${g === 'S' || g === 'A' ? 'text-purple-600' : isPass ? 'text-[#008C46]' : 'text-red-500'}`;
+        el.className = `text-[clamp(2.5rem,5vw,3rem)] font-black font-tech transition-colors duration-300 ${g === 'S' || g === 'A' ? 'text-purple-400 text-shadow-sm' : isPass ? 'text-emerald-400' : 'text-red-400'}`;
     }
 }
 
@@ -865,7 +963,6 @@ function manualShuffle(){
 }
 function changeQPage(){currentQPage=(currentQPage+1)%3;renderQuestions()}
 
-// --- 질문지 렌더링 ---
 function renderQuestions(){
     const setIdx=activeQSets[currentQPage];
     if(setIdx===undefined)return;
@@ -874,22 +971,21 @@ function renderQuestions(){
     container.innerHTML=QUESTIONS_DB[setIdx].map((qStr,idx)=>{
         const[q,a]=qStr.split('→');
         return`
-        <div class="p-3 md:p-4 rounded-xl bg-white border border-slate-200 shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:shadow-sm transition-shadow relative overflow-hidden group">
-            <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#002B5C] opacity-80"></div>
-            <p class="font-bold text-slate-800 text-sm md:text-[15px] mb-1.5 leading-snug">
-                <span class="text-[#002B5C] mr-1.5 font-mono">Q${idx+1}.</span> ${q.replace('[신규]','').trim()}
-                ${q.includes('[신규]')?'<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black border border-red-200">NEW</span>':''}
+        <div class="p-3 md:p-4 rounded-sm bg-slate-800/60 border border-slate-600 hover:border-cyan-500 hover:bg-cyan-900/20 transition-colors relative overflow-hidden group font-kor shadow-sm">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-cyan-600 opacity-80 group-hover:bg-cyan-400"></div>
+            <p class="font-bold text-white text-sm md:text-[15px] mb-1.5 leading-snug">
+                <span class="text-cyan-400 mr-1.5 font-tech">Q${idx+1}.</span> ${q.replace('[신규]','').trim()}
+                ${q.includes('[신규]')?'<span class="font-kor font-black ml-1.5 text-[9px] bg-red-900/80 text-red-300 px-1.5 py-0.5 rounded-sm border border-red-500 tracking-wide">NEW</span>':''}
             </p>
-            ${a?`<div class="pl-3 ml-1 border-l-2 border-slate-200 text-[13px] font-medium text-slate-500 leading-snug">${a.trim()}</div>`:''}
+            ${a?`<div class="pl-3 ml-1 border-l-2 border-slate-500 text-[13px] font-bold text-slate-300 leading-snug">${a.trim()}</div>`:''}
         </div>`
     }).join('');
     container.scrollTop=0;
 }
 
-// --- 동적 필터 로직 ---
 function getBadgeHtml(type) {
-    if(type === '사전기량검증' || type === '사전') return `<span class="badge-pre type-badge">사전기량</span>`;
-    if(type === '본기량검증' || type === '본') return `<span class="badge-main type-badge">본기량</span>`;
+    if(type === '사전기량검증' || type === '사전') return `<span class="badge-pre type-badge font-kor font-bold text-[10px]">사전기량</span>`;
+    if(type === '본기량검증' || type === '본') return `<span class="badge-main type-badge font-kor font-bold text-[10px]">본기량</span>`;
     return '';
 }
 
@@ -897,13 +993,6 @@ function updateFilters() {
     updateDynamicFilters('dash');
     updateDynamicFilters('eval');
     updateDynamicFilters('admin');
-}
-
-function handleFilterChange(prefix) {
-    updateDynamicFilters(prefix);
-    if (prefix === 'dash') renderDashboard();
-    if (prefix === 'eval') updateCandidateSelect();
-    if (prefix === 'admin') renderAdminTable();
 }
 
 function updateDynamicFilters(prefix) {
@@ -946,7 +1035,27 @@ function updateDynamicFilters(prefix) {
     if (changed) updateDynamicFilters(prefix);
 }
 
-// --- 대상자 로드 및 평가 ---
+function handleFilterChange(prefix) {
+    if (prefix === 'dash') activeSubFilter = null; 
+    updateDynamicFilters(prefix);
+    if (prefix === 'dash') renderDashboard();
+    if (prefix === 'eval') updateCandidateSelect();
+    if (prefix === 'admin') renderAdminTable();
+}
+
+function setSubFilter(filterName) {
+    if (activeSubFilter === filterName) {
+        activeSubFilter = null; 
+    } else {
+        activeSubFilter = filterName;
+    }
+    renderDashboard();
+    if(activeSubFilter) {
+        const tableArea = document.querySelector('.dx-table-wrapper');
+        if(tableArea) tableArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
 function updateCandidateSelect(targetUid=null){
     const s=document.getElementById('candidate-select');
     if (!s) return;
@@ -964,7 +1073,6 @@ function updateCandidateSelect(targetUid=null){
         if (cf !== 'all' && c.country !== cf) return false;
         if (af !== 'all' && c.agency !== af) return false;
 
-        // [추가] 한국어 평가와 기량 검증이 모두 완료된 대상자는 평가 명단(드롭다운)에서 완벽히 제외
         const myLog = globalLogs.find(l => String(l.app_no) === String(c.app_no) && l.evaluator === evaluatorName);
         const isKoreanDone = !!myLog;
         const isSkillDone = (c.s_status === '완료');
@@ -1007,7 +1115,7 @@ function loadCandidate(uid){
     const p=candidates.find(c=>c.uid===currentId);
     
     document.getElementById('info-name').innerText=p.name;
-    document.getElementById('info-age').innerText=`${p.age}세 / ${p.dob?new Date(p.dob).getFullYear():'-'}`;
+    document.getElementById('info-age').innerText=`${p.age} / ${p.dob?new Date(p.dob).getFullYear():'-'}`;
     document.getElementById('info-e9').innerText=p.e9;
     document.getElementById('info-job').innerText=p.job;
     document.getElementById('info-type').innerHTML=getBadgeHtml(p.eval_type);
@@ -1042,12 +1150,11 @@ function loadCandidate(uid){
     const isFit=(p.job||"").includes("취부");
     const isPre = (p.eval_type === '사전기량검증' || p.eval_type === '사전');
     
-    // 직종 및 검증 단계별 합격 기준 텍스트 동적 설정
     const weldPassCriteriaText = isPre ? '50점(C등급) 이상 합격 기준' : '60점(B등급) 이상 합격 기준';
     const fitPassCriteriaText = isPre ? '40점(D등급) 이상 합격 기준' : '50점(C등급) 이상 합격 기준';
 
-    let html=`<div class="bg-white p-6 md:p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-slate-200 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-[#002B5C]"></div><h4 class="font-black text-slate-800 text-lg mb-6 flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blue-50 text-[#002B5C] flex items-center justify-center"><i class="fa-solid fa-fire"></i></div> 용접(Welding) 실기 평가</h4><div class="flex items-center justify-center gap-8 mb-4"><div class="relative"><input type="number" id="skill-score-weld" class="w-32 text-center text-5xl font-black font-mono border-b-4 border-slate-200 focus:border-[#002B5C] outline-none py-2 bg-transparent text-slate-800 transition-colors" placeholder="0" oninput="calcSkillGrade('weld')"><span class="absolute right-2 bottom-4 text-slate-400 font-bold">점</span></div><div class="h-16 w-px bg-slate-200"></div><div class="text-center w-24"><p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Grade</p><p class="text-5xl font-black text-slate-200 font-mono" id="skill-grade-weld">-</p></div></div><p class="text-center text-xs font-bold text-slate-400 bg-slate-50 py-2 rounded-lg mt-4"><i class="fa-solid fa-circle-info text-blue-400 mr-1"></i> ${weldPassCriteriaText}</p></div>`;
-    if(isFit){html=`<div class="bg-white p-6 md:p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-slate-200 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-[#008C46]"></div><h4 class="font-black text-slate-800 text-lg mb-6 flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-green-50 text-[#008C46] flex items-center justify-center"><i class="fa-solid fa-ruler-combined"></i></div> 취부(Fitting) 실기 평가</h4><div class="flex items-center justify-center gap-8 mb-4"><div class="relative"><input type="number" id="skill-score-fit" class="w-32 text-center text-5xl font-black font-mono border-b-4 border-slate-200 focus:border-[#008C46] outline-none py-2 bg-transparent text-slate-800 transition-colors" placeholder="0" oninput="calcSkillGrade('fit')"><span class="absolute right-2 bottom-4 text-slate-400 font-bold">점</span></div><div class="h-16 w-px bg-slate-200"></div><div class="text-center w-24"><p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Grade</p><p class="text-5xl font-black text-slate-200 font-mono" id="skill-grade-fit">-</p></div></div><p class="text-center text-xs font-bold text-slate-400 bg-slate-50 py-2 rounded-lg mt-4"><i class="fa-solid fa-circle-info text-green-500 mr-1"></i> ${fitPassCriteriaText}</p></div>`+html}
+    let html=`<div class="hud-card p-6 overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-cyan-400"></div><h4 class="font-kor font-black text-cyan-300 text-lg mb-4 flex items-center gap-2"><div class="w-8 h-8 rounded-sm bg-cyan-900/50 border border-cyan-500 text-cyan-300 flex items-center justify-center shadow-inner"><i class="fa-solid fa-fire text-lg"></i></div> 용접(Welding) 실기 평가</h4><div class="flex items-center justify-center gap-6 mb-4"><div class="relative"><input type="number" id="skill-score-weld" class="w-32 text-center text-[clamp(2.5rem,5vw,3rem)] font-black font-tech border-b-2 border-slate-600 focus:border-cyan-400 outline-none py-2 bg-transparent text-white transition-colors" placeholder="0" oninput="calcSkillGrade('weld')"><span class="absolute right-2 bottom-4 text-cyan-500 font-kor font-bold text-xs">점</span></div><div class="h-16 w-px bg-slate-600"></div><div class="text-center w-24"><p class="text-[10px] text-cyan-500 font-eng font-bold tracking-widest mb-1">GRADE</p><p class="text-[clamp(2.5rem,5vw,3rem)] font-black text-slate-500 font-tech" id="skill-grade-weld">-</p></div></div><p class="text-center text-xs font-kor font-bold text-slate-300 bg-slate-800/80 py-2.5 rounded-sm border border-slate-600 mt-4 shadow-inner"><i class="fa-solid fa-circle-info text-cyan-400 mr-1.5 text-base align-sub"></i> ${weldPassCriteriaText}</p></div>`;
+    if(isFit){html=`<div class="hud-card p-6 overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-emerald-400"></div><h4 class="font-kor font-black text-emerald-300 text-lg mb-4 flex items-center gap-2"><div class="w-8 h-8 rounded-sm bg-emerald-900/50 border border-emerald-500 text-emerald-300 flex items-center justify-center shadow-inner"><i class="fa-solid fa-ruler-combined text-lg"></i></div> 취부(Fitting) 실기 평가</h4><div class="flex items-center justify-center gap-6 mb-4"><div class="relative"><input type="number" id="skill-score-fit" class="w-32 text-center text-[clamp(2.5rem,5vw,3rem)] font-black font-tech border-b-2 border-slate-600 focus:border-emerald-400 outline-none py-2 bg-transparent text-white transition-colors" placeholder="0" oninput="calcSkillGrade('fit')"><span class="absolute right-2 bottom-4 text-emerald-500 font-kor font-bold text-xs">점</span></div><div class="h-16 w-px bg-slate-600"></div><div class="text-center w-24"><p class="text-[10px] text-emerald-500 font-eng font-bold tracking-widest mb-1">GRADE</p><p class="text-[clamp(2.5rem,5vw,3rem)] font-black text-slate-500 font-tech" id="skill-grade-fit">-</p></div></div><p class="text-center text-xs font-kor font-bold text-slate-300 bg-slate-800/80 py-2.5 rounded-sm border border-slate-600 mt-4 shadow-inner"><i class="fa-solid fa-circle-info text-emerald-400 mr-1.5 text-base align-sub"></i> ${fitPassCriteriaText}</p></div>`+html}
     container.innerHTML=html;
     
     if(document.getElementById('skill-score-weld')){document.getElementById('skill-score-weld').value=p.s_score_weld||'';calcSkillGrade('weld')}
@@ -1057,21 +1164,18 @@ function loadCandidate(uid){
     shuffleQuestions();
 }
 
-// 헬퍼 함수: 한국어 평가 합격 여부 분리 판단
 function checkKoreanPass(p) {
     const kScore = p.k_score || 0;
-    const age = p.age || 0; // 엑셀에서 나이 데이터 확인
+    const age = p.age || 0; 
     const isPre = (p.eval_type === '사전기량검증' || p.eval_type === '사전');
     if(!kScore) return '대기';
     
     if (isPre) {
-        // 사전기량: 연령별 컷오프 적용
         if (age >= 40) return kScore >= 60 ? '최종 합격' : '불합격';
         if (age >= 30 && age < 40) return kScore >= 50 ? '최종 합격' : '불합격';
         if (age >= 24 && age <= 29) return kScore >= 45 ? '조건부 합격' : '불합격';
         return kScore >= 40 ? '조건부 합격' : '불합격';
     } else {
-        // 본기량: 연령별 컷오프 적용
         if (age >= 40) return kScore >= 70 ? '최종 합격' : '불합격';
         if (age >= 30 && age < 40) return kScore >= 60 ? '최종 합격' : '불합격';
         if (age >= 24 && age <= 29) return kScore >= 50 ? '조건부 합격' : '불합격';
@@ -1079,7 +1183,6 @@ function checkKoreanPass(p) {
     }
 }
 
-// 헬퍼 함수: 기량 평가 합격 여부 분리 판단 (조건부 없음)
 function checkSkillPass(p) {
     const sWeld = p.s_score_weld || 0;
     const sFit = p.s_score_fit || 0;
@@ -1091,14 +1194,13 @@ function checkSkillPass(p) {
     else return isFit ? (sFit >= 50) : (sWeld >= 60);
 }
 
-// 조건부 합격 로직 완벽 반영 (최종 결과)
 function determineResult(p) {
     if (!p.k_score) return '대기';
     const isFit = (p.job || '').includes('취부');
     if ((p.s_score_weld || 0) === 0 && (!isFit || (p.s_score_fit || 0) === 0)) return '대기';
     
     if (!checkSkillPass(p)) return '불합격';
-    return checkKoreanPass(p); // 기량 통과 시 한국어 합격 등급이 최종 등급이 됨
+    return checkKoreanPass(p); 
 }
 
 function loadSaved(uid) {
@@ -1143,7 +1245,6 @@ async function saveCurrentEval(){
         p.memo=document.getElementById('skill-memo').value; p.s_status='완료'; saveMode='skill';
     }
     
-    // 결과 판별 로직 호출
     p.result = determineResult(p);
     
     const tf=document.getElementById('eval-filter-type')?.value || 'all'; 
@@ -1196,7 +1297,6 @@ async function saveCurrentEval(){
     }
 }
 
-// --- 대시보드 및 테이블 (UI 개편 적용) ---
 function renderDashboard(){
     const tf=document.getElementById('dash-filter-type')?.value || 'all';
     const df=document.getElementById('dash-filter-date')?.value || 'all';
@@ -1213,24 +1313,20 @@ function renderDashboard(){
     
     const total = filtered.length;
     
-    // 한국어 통계
     const kList = filtered.filter(c => c.k_score > 0);
     const kComp = kList.length;
     const kPassPure = kList.filter(c => checkKoreanPass(c) === '최종 합격').length;
     const kPassCond = kList.filter(c => checkKoreanPass(c) === '최종 합격' || checkKoreanPass(c) === '조건부 합격').length;
 
-    // 기량 통계
     const sList = filtered.filter(c => c.s_status === '완료');
     const sComp = sList.length;
     const sPass = sList.filter(c => checkSkillPass(c)).length;
 
-    // 통합 최종 통계
     const tList = filtered.filter(c => c.k_score > 0 && c.s_status === '완료');
     const tComp = tList.length;
     const tPassPure = tList.filter(c => determineResult(c) === '최종 합격').length;
     const tPassCond = tList.filter(c => determineResult(c) === '최종 합격' || determineResult(c) === '조건부 합격').length;
 
-    // UI 업데이트 (null check 추가 및 innerText 안전하게 할당)
     if(document.getElementById('dash-k-total')) document.getElementById('dash-k-total').innerText = total; 
     if(document.getElementById('dash-k-comp')) document.getElementById('dash-k-comp').innerText = kComp; 
     if(document.getElementById('dash-k-pass-pure')) document.getElementById('dash-k-pass-pure').innerText = kPassPure;
@@ -1250,7 +1346,6 @@ function renderDashboard(){
     if(document.getElementById('dash-t-rate-pure')) document.getElementById('dash-t-rate-pure').innerText = tComp ? Math.round((tPassPure/tComp)*100) : '0';
     if(document.getElementById('dash-t-rate-cond')) document.getElementById('dash-t-rate-cond').innerText = tComp ? Math.round((tPassCond/tComp)*100) : '0';
     
-    // 차트 렌더링 함수 (순수합격, 조건부, 불합격)
     const draw = (id, pure, cond, fail, empty) => {
         const el = document.getElementById(id);
         if(!el) return;
@@ -1259,10 +1354,10 @@ function renderDashboard(){
         
         let data, bg;
         if(empty) {
-            data = [1]; bg = ['rgba(226, 232, 240, 0.4)'];
+            data = [1]; bg = ['rgba(34, 211, 238, 0.1)']; 
         } else {
             data = [pure, cond, fail];
-            bg = ['#22c55e', '#eab308', '#ef4444']; // Tailwind green-500, yellow-500, red-500
+            bg = ['#22d3ee', '#facc15', '#ef4444']; 
         }
 
         window[id+'Chart'] = new Chart(ctx, {
@@ -1273,35 +1368,82 @@ function renderDashboard(){
     };
 
     draw('chartKorean', kPassPure, kPassCond - kPassPure, kComp - kPassCond, kComp === 0); 
-    draw('chartSkill', sPass, 0, sComp - sPass, sComp === 0); // 기량은 조건부 없음
+    draw('chartSkill', sPass, 0, sComp - sPass, sComp === 0); 
     draw('chartTotal', tPassPure, tPassCond - tPassPure, tComp - tPassCond, tComp === 0);
     
     const tbody = document.getElementById('recent-table-body');
-    const list = filtered.filter(c => c.k_score > 0 || c.s_status === '완료');
+    let tableList = filtered.filter(c => c.k_score > 0 || c.s_status === '완료');
+    let filterBadgeText = "";
+
+    if (activeSubFilter === 'k-comp') { tableList = filtered.filter(c => c.k_score > 0); filterBadgeText = "한국어 평가 완료"; }
+    else if (activeSubFilter === 'k-pass-pure') { tableList = filtered.filter(c => c.k_score > 0 && checkKoreanPass(c) === '최종 합격'); filterBadgeText = "한국어 순수 합격"; }
+    else if (activeSubFilter === 'k-pass-cond') { tableList = filtered.filter(c => c.k_score > 0 && (checkKoreanPass(c) === '최종 합격' || checkKoreanPass(c) === '조건부 합격')); filterBadgeText = "한국어 조건부 포함 합격"; }
+    else if (activeSubFilter === 's-comp') { tableList = filtered.filter(c => c.s_status === '완료'); filterBadgeText = "기량 평가 완료"; }
+    else if (activeSubFilter === 's-pass') { tableList = filtered.filter(c => c.s_status === '완료' && checkSkillPass(c)); filterBadgeText = "기량 실기 통과"; }
+    else if (activeSubFilter === 't-comp') { tableList = filtered.filter(c => c.k_score > 0 && c.s_status === '완료'); filterBadgeText = "통합 최종 판정 완료"; }
+    else if (activeSubFilter === 't-pass-pure') { tableList = filtered.filter(c => c.k_score > 0 && c.s_status === '완료' && determineResult(c) === '최종 합격'); filterBadgeText = "통합 순수 합격"; }
+    else if (activeSubFilter === 't-pass-cond') { tableList = filtered.filter(c => c.k_score > 0 && c.s_status === '완료' && (determineResult(c) === '최종 합격' || determineResult(c) === '조건부 합격')); filterBadgeText = "통합 조건부 포함 합격"; }
+
+    const badge = document.getElementById('active-filter-badge');
+    if (activeSubFilter && badge) {
+        document.getElementById('active-filter-text').innerText = filterBadgeText;
+        badge.classList.remove('hidden');
+    } else if (badge) {
+        badge.classList.add('hidden');
+    }
     
-    if(!list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-slate-400 font-medium">선택된 조건에 해당하는 데이터가 없습니다.</td></tr>';
+    const countEl = document.getElementById('dash-filtered-count');
+    if (countEl) {
+        countEl.innerText = tableList.length + '명';
+        if (activeSubFilter) {
+            countEl.className = "font-tech ml-1 text-[13px] font-bold text-cyan-200 bg-cyan-900 border border-cyan-500 px-2.5 py-0.5 rounded-sm transition-colors shadow-sm";
+        } else {
+            countEl.className = "font-tech ml-1 text-[13px] font-bold text-slate-300 bg-slate-800 border border-slate-600 px-2.5 py-0.5 rounded-sm transition-colors shadow-sm";
+        }
+    }
+    
+    if(!tableList.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-slate-400 font-kor font-bold text-sm">데이터가 없습니다.</td></tr>';
     } else {
-        tbody.innerHTML = list.map((c, i) => {
+        tbody.innerHTML = tableList.map((c, i) => {
             let actualResult = determineResult(c);
             let resClass = actualResult === '최종 합격' ? 'res-pass' : actualResult === '조건부 합격' ? 'res-cond' : actualResult === '대기' ? 'res-wait' : 'res-fail';
-            return `<tr class="bg-white border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer transition-colors" onclick="loadSaved('${c.uid}')">
-                <td class="px-4 md:px-6 py-4 text-center">${getBadgeHtml(c.eval_type)}</td>
-                <td class="px-4 md:px-6 py-4 font-bold text-slate-500 text-center font-mono">${c.app_no}</td>
-                <td class="px-4 md:px-6 py-4 font-bold text-slate-800 text-center">${c.name}</td>
-                <td class="px-4 md:px-6 py-4 text-slate-600 text-center font-medium">${c.job}</td>
-                <td class="px-4 md:px-6 py-4 text-slate-500 text-xs text-center font-mono">${c.age}세 / <span class="${c.e9==='O'?'text-blue-600 font-bold':'text-slate-400'}">${c.e9}</span></td>
-                <td class="px-4 md:px-6 py-4 text-center font-black text-[#002B5C] font-mono">${c.k_score > 0 ? c.k_score :'-'}</td>
-                <td class="px-4 md:px-6 py-4 text-center font-black text-[#008C46] font-mono tracking-tight">${c.s_status==='완료'?((c.job.includes('취부')?`W:${c.grade_weld}/F:${c.grade_fit}`:c.grade_weld)):'-'}</td>
-                <td class="px-4 md:px-6 py-4 text-center"><span class="px-2.5 py-1.5 rounded-lg text-[11px] tracking-wide ${resClass}">${actualResult}</span></td>
+            return `<tr class="border-b border-slate-700 hover:bg-cyan-950/30 cursor-pointer transition-colors" onclick="loadSaved('${c.uid}')">
+                <td class="px-4 py-3 text-center">${getBadgeHtml(c.eval_type)}</td>
+                <td class="px-4 py-3 font-bold text-white text-center font-tech tracking-wider">${c.app_no}</td>
+                <td class="px-4 py-3 font-bold text-white text-center">${c.name}</td>
+                <td class="px-4 py-3 text-slate-300 text-center font-bold">${c.job}</td>
+                <td class="px-4 py-3 text-slate-300 text-xs text-center font-tech font-bold">${c.age} / <span class="${c.e9==='O'?'text-cyan-400 font-black':'text-slate-500'}">${c.e9}</span></td>
+                <td class="px-4 py-3 text-center font-black text-cyan-300 font-tech text-base">${c.k_score > 0 ? c.k_score :'-'}</td>
+                <td class="px-4 py-3 text-center font-black text-purple-300 font-tech tracking-tight text-base">${c.s_status==='완료'?((c.job.includes('취부')?`W:${c.grade_weld}/F:${c.grade_fit}`:c.grade_weld)):'-'}</td>
+                <td class="px-4 py-3 text-center"><span class="px-2.5 py-1 rounded-sm text-[11px] font-bold ${resClass}">${actualResult}</span></td>
             </tr>`;
         }).join('');
     }
     updateSortIcons('dash', dashboardSort);
 }
+
 function handleSort(view,col){let sortState=view==='dash'?dashboardSort:adminSort;if(sortState.col===col)sortState.asc=!sortState.asc;else{sortState.col=col;sortState.asc=true}view==='dash'?renderDashboard():renderAdminTable()}
+
 function sortData(list,col,asc){return list.sort((a,b)=>{let vA=a[col],vB=b[col];if(col==='k_score'||col==='age'){vA=Number(vA)||0;vB=Number(vB)||0}else if(col==='idx')return asc?String(a.idx).localeCompare(String(b.idx),'en',{numeric:true}):String(b.idx).localeCompare(String(a.idx),'en',{numeric:true});else{vA=(vA||'').toString().toLowerCase();vB=(vB||'').toString().toLowerCase()}return vA<vB?(asc?-1:1):vA>vB?(asc?1:-1):0})}
-function updateSortIcons(view,state){const ths=document.querySelectorAll(`#${view}-table-body`).length?document.getElementById(`${view}-table-body`).previousElementSibling.querySelectorAll('th.sortable'):[];ths.forEach(th=>{const icon=th.querySelector('i');if(th.getAttribute('onclick').includes(state.col)){th.classList.add('active');icon.className=state.asc?'fa-solid fa-sort-up':'fa-solid fa-sort-down'}else{th.classList.remove('active');icon.className='fa-solid fa-sort'}})}
+
+function updateSortIcons(view,state){
+    const tid=view==='dash'?'recent-table-body':`${view}-table-body`;
+    const tbody=document.getElementById(tid);
+    if(!tbody||!tbody.previousElementSibling)return;
+    const ths=tbody.previousElementSibling.querySelectorAll('th.sortable');
+    ths.forEach(th=>{
+        const icon=th.querySelector('i');
+        if(!icon)return;
+        if(th.getAttribute('onclick')&&th.getAttribute('onclick').includes(state.col)){
+            th.classList.add('active');
+            icon.className=state.asc?'fa-solid fa-sort-up':'fa-solid fa-sort-down';
+        }else{
+            th.classList.remove('active');
+            icon.className='fa-solid fa-sort';
+        }
+    });
+}
 
 function renderAdminTable(){
     const tf=document.getElementById('admin-filter-type')?.value || 'all';
@@ -1315,25 +1457,24 @@ function renderAdminTable(){
     if(af!=='all')list=list.filter(c=>c.agency===af);
     if(adminSort.col === 'no') adminSort.col = 'app_no';
     list=sortData(list,adminSort.col,adminSort.asc);
-    document.getElementById('admin-count').innerText=list.length+'명';
+    document.getElementById('admin-count').innerText=list.length + '명';
     const tbody=document.getElementById('admin-table-body');
     tbody.innerHTML=list.map((c, i)=>{
         let actualResult = determineResult(c);
         let resClass = actualResult === '최종 합격' ? 'res-pass' : actualResult === '조건부 합격' ? 'res-cond' : actualResult === '대기' ? 'res-wait' : 'res-fail';
-        return `<tr class="bg-white border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors" onclick="loadSaved('${c.uid}')">
-            <td class="px-4 py-3 text-center"><input type="checkbox" class="w-4 h-4 text-[#002B5C] rounded border-slate-300 focus:ring-[#002B5C] del-check" value="${c.id}" onclick="event.stopPropagation()"></td>
+        return `<tr class="border-b border-slate-700 hover:bg-cyan-950/20 cursor-pointer transition-colors" onclick="loadSaved('${c.uid}')">
+            <td class="px-4 py-3 text-center"><input type="checkbox" class="w-4 h-4 bg-slate-800 border-slate-500 rounded-sm focus:ring-cyan-400 accent-cyan-500 del-check" value="${c.id}" onclick="event.stopPropagation()"></td>
             <td class="px-4 py-3 text-center">${getBadgeHtml(c.eval_type)}</td>
-            <td class="px-6 py-3 font-bold text-slate-500 text-center font-mono">${c.app_no}</td>
-            <td class="px-6 py-3 font-bold text-slate-800 text-center">${c.name}</td>
-            <td class="px-6 py-3 text-slate-600 text-center font-medium">${c.job}</td>
-            <td class="px-6 py-3 text-center text-xs text-slate-500 font-medium">${c.country} <span class="text-slate-300 mx-1">|</span> ${c.agency}</td>
-            <td class="px-6 py-3 text-center font-bold text-xs"><span class="px-2.5 py-1.5 rounded-lg text-[11px] tracking-wide ${resClass}">${actualResult}</span></td>
+            <td class="px-6 py-3 font-bold text-white text-center font-tech tracking-wider">${c.app_no}</td>
+            <td class="px-6 py-3 font-bold text-white text-center">${c.name}</td>
+            <td class="px-6 py-3 text-slate-300 text-center font-bold">${c.job}</td>
+            <td class="px-6 py-3 text-center text-xs text-slate-400 font-bold">${c.country} <span class="text-slate-600 mx-1">|</span> ${c.agency}</td>
+            <td class="px-6 py-3 text-center font-bold text-xs"><span class="px-2.5 py-1.5 rounded-sm text-[11px] font-bold ${resClass}">${actualResult}</span></td>
         </tr>`;
     }).join('');
     updateSortIcons('admin',adminSort);
 }
 
-// --- 엑셀 3시트 멀티 업로드 핵심 로직 ---
 function saveUploadConfig(){confCountry=document.getElementById('conf-country')?.value || '';confAgency=document.getElementById('conf-agency')?.value || '';if(!confCountry||!confAgency)return alert('검증 국가와 업체를 입력해주세요.','error');localStorage.setItem('confCountry',confCountry);localStorage.setItem('confAgency',confAgency);updateHeaderLocation();alert('업로드 환경이 저장되었습니다.','success')}
 function saveGasUrl(){gasUrl=document.getElementById('gas-url')?.value || '';localStorage.setItem('gasUrl',gasUrl);alert('시스템 연결이 완료되었습니다.','success');fetchData()}
 
@@ -1427,7 +1568,6 @@ function uploadExcel(input){
         }else{
             alert('로컬 모드: 기존 데이터에 새로운 명단이 누적 추가되었습니다.', 'success');
             
-            // 기존 데이터 유지 및 중복 방지 (누적 저장 로직 추가)
             const existingUids = new Set(candidates.map(c => c.uid));
             const uniqueNewCandidates = newCandidates.filter(c => !existingUids.has(c.uid));
             candidates = [...candidates, ...uniqueNewCandidates];
@@ -1445,7 +1585,7 @@ function uploadExcel(input){
 
 function toggleCheckAll(source){const checkboxes=document.querySelectorAll('.del-check');checkboxes.forEach(cb=>cb.checked=source.checked)}
 async function deleteSelected(){const checkboxes=document.querySelectorAll('.del-check:checked');if(checkboxes.length===0)return alert('선택된 데이터가 없습니다.');if(!confirm('선택한 데이터를 데이터베이스에서 파기하시겠습니까?'))return;const ids=Array.from(checkboxes).map(cb=>cb.value);if(gasUrl&&gasUrl.trim()!==''){try{await fetch(gasUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'delete',ids:ids})});alert('파기 요청이 전송되었습니다. 잠시 후 동기화됩니다.','success');setTimeout(()=>location.reload(),2000)}catch(e){console.error(e)}}else{candidates=candidates.filter(c=>!ids.includes(c.id));updateFilters();updateCandidateSelect();renderDashboard();renderAdminTable();alert('파기 완료')}}
-window.alert=(m,t='info')=>{const d=document.createElement('div');d.className=`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl z-[9999] text-white font-bold text-sm fade-in flex items-center gap-3 ${t==='success'?'bg-[#008C46]':'bg-[#002B5C]'}`;d.innerHTML=`<i class="fa-solid ${t==='success'?'fa-circle-check':'fa-circle-exclamation'} text-lg"></i> ${m}`;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)}
+window.alert=(m,t='info')=>{const d=document.createElement('div');d.className=`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-sm shadow-[0_0_20px_rgba(0,0,0,0.8)] z-[9999] font-bold text-sm fade-in flex items-center gap-3 font-kor tracking-wide ${t==='success'?'bg-emerald-900 border border-emerald-500 text-emerald-100':'bg-red-900 border border-red-500 text-red-100'}`;d.innerHTML=`<i class="fa-solid ${t==='success'?'fa-circle-check text-emerald-400':'fa-circle-exclamation text-red-400'} text-lg"></i> <span class="font-kor">${m}</span>`;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)}
 </script>
 </body>
 </html>
