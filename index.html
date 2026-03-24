@@ -1858,7 +1858,7 @@ function uploadExcel(input){
                 let headerIdx = -1;
                 for(let i=0; i<Math.min(json.length, 5); i++){
                     const rowStr = JSON.stringify(json[i]);
-                    if(rowStr.includes('NO') || rowStr.includes('성 명') || rowStr.includes('이름') || rowStr.includes('응시번호')){ headerIdx = i; break; }
+                    if(rowStr.includes('NO') || rowStr.includes('성 명') || rowStr.includes('이름') || rowStr.includes('응시번호') || rowStr.includes('성명')){ headerIdx = i; break; }
                 }
                 
                 const startIndex = headerIdx !== -1 ? headerIdx + 1 : 0;
@@ -2000,16 +2000,17 @@ function uploadExcel(input){
                                 s_score_weld: c.s_score_weld || 0,
                                 grade_weld: c.grade_weld || '-',
                                 s_status: c.s_status || '대기',
-                                result: c.result || '대기'
+                                result: c.result || '대기',
+                                eval_type: typeName // 백엔드 분류를 위해 추가
                             }));
 
                             await fetch(gasUrl, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                                 body: JSON.stringify({
-                                    type: 'upload',
-                                    eval_type: typeName,
-                                    data: payloadData
+                                    type: 'upload_multi',
+                                    candidates: payloadData,
+                                    logs: [] 
                                 })
                             });
                             
@@ -2019,6 +2020,27 @@ function uploadExcel(input){
 
                     if (preList.length > 0) await sendData(preList, '사전기량검증');
                     if (mainList.length > 0) await sendData(mainList, '본기량검증');
+                    
+                    if (newLogs.length > 0) {
+                        const LOG_CHUNK = 50;
+                        let logChunks = Math.ceil(newLogs.length / LOG_CHUNK);
+                        let curLogChunk = 0;
+                        for (let i = 0; i < newLogs.length; i += LOG_CHUNK) {
+                            curLogChunk++;
+                            alert(`평가 로그 전송 중... (${curLogChunk}/${logChunks} 완료)`, 'info');
+                            const chunk = newLogs.slice(i, i + LOG_CHUNK);
+                            await fetch(gasUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                body: JSON.stringify({
+                                    type: 'upload_multi',
+                                    candidates: [],
+                                    logs: chunk
+                                })
+                            });
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
 
                     if(confirm(`서버 전송이 완료되었습니다.\n화면을 새로고침 하시겠습니까?`)) {
                         location.reload();
