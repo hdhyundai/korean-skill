@@ -6,7 +6,6 @@
     <title>HD현대삼호 외국인 평가 시스템 - DX HUD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
@@ -1873,8 +1872,9 @@ function uploadExcel(input){
                         let e9=(['O','0','YES','○'].some(k=>e9Str.includes(k)))?'O':'X';
                         
                         let eval_date = r[24];
+                        // 수정: 비어있을 경우 오늘 날짜를 강제로 넣지 않고 빈 값 그대로 처리
                         if(!eval_date) {
-                            eval_date = new Date().toISOString().split('T')[0];
+                            eval_date = '';
                         } else if(typeof eval_date === 'number') {
                             let d = new Date(Math.round((eval_date-25569)*86400*1000));
                             eval_date = d.toISOString().split('T')[0];
