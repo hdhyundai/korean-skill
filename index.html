@@ -6,6 +6,7 @@
     <title>HD현대삼호 외국인 평가 시스템 - DX HUD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     
@@ -751,8 +752,15 @@ function getKoreanPassText(result) {
 
 async function fetchData(){
     try{
-        const res=await fetch(gasUrl);
-        const data=await res.json();
+        const res=await fetch(gasUrl, { redirect: 'follow' });
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error(text);
+            throw new Error("서버에서 올바른 데이터를 받지 못했습니다. 앱스 스크립트의 배포 권한이 '모든 사용자'인지 확인해주세요.");
+        }
         
         globalLogs = data.logs || [];
         
@@ -826,7 +834,7 @@ async function fetchData(){
         updateCandidateSelect();
     } catch(e){
         console.error(e);
-        alert("서버 연결 실패. 네트워크 상태를 확인하세요.", "error");
+        alert("서버 연결 실패: " + e.message, "error");
     }
 }
 
